@@ -27,6 +27,8 @@ interface Player {
   isDiving: boolean;
   angle: number;
   targetAngle: number;
+  frameIndex: number;
+  animationTimer: number;
 }
 
 interface Camera {
@@ -68,8 +70,8 @@ const GROUND_HEIGHT = 20;
 const GRAVITY = 0.3;
 const JUMP_FORCE = -5;
 const GROUND_Y = height - GROUND_HEIGHT;
-const PLAYER_WIDTH = 20;
-const PLAYER_HEIGHT = 30;
+const PLAYER_WIDTH = 16;
+const PLAYER_HEIGHT = 16;
 
 const player: Player = {
   x: 50,
@@ -80,8 +82,10 @@ const player: Player = {
   velocityX: 0,
   isGrounded: true,
   isDiving: false,
-  angle: Math.PI / 2,
-  targetAngle: Math.PI / 2
+  angle: 0,
+  targetAngle: 0,
+  frameIndex: 0,
+  animationTimer: 0
 };
 
 function bottomOfPlayer(player: Player): number {
@@ -100,12 +104,6 @@ const particles: Particle[] = [];
 const catImage = new Image();
 catImage.src = catImageUrl;
 
-const catSprite: CatSprite = {
-  x: 100,
-  y: GROUND_Y - 16,
-  frameIndex: 0,
-  animationTimer: 0
-};
 
 function generateCloud() {
   clouds.push({
@@ -197,24 +195,34 @@ function drawParticle(particle: Particle) {
   ctx.fillRect(particle.x - camera.x, particle.y - camera.y, 3, 3);
 }
 
-function updateCatSprite() {
-  catSprite.animationTimer++;
-  if (catSprite.animationTimer >= 20) {
-    catSprite.frameIndex = (catSprite.frameIndex + 1) % 2;
-    catSprite.animationTimer = 0;
+function updatePlayerAnimation() {
+  if (player.isGrounded) {
+    player.animationTimer++;
+    if (player.animationTimer >= 10) {
+      player.frameIndex = (player.frameIndex + 1) % 2;
+      player.animationTimer = 0;
+    }
+  } else {
+    player.frameIndex = 0;
   }
 }
 
-function drawCatSprite() {
+function drawPlayer() {
   const frameWidth = 16;
   const frameHeight = 16;
-  const sourceX = catSprite.frameIndex * frameWidth;
+  const sourceX = player.frameIndex * frameWidth;
+  
+  ctx.save();
+  ctx.translate(player.x + player.width/2 - camera.x, player.y + player.height/2 - camera.y);
+  ctx.rotate(player.angle);
   
   ctx.drawImage(
     catImage,
     sourceX, 0, frameWidth, frameHeight,
-    catSprite.x - camera.x, catSprite.y - camera.y, frameWidth, frameHeight
+    -frameWidth/2, -frameHeight/2, frameWidth, frameHeight
   );
+  
+  ctx.restore();
 }
 
 function getPlayerVertices(): Point[] {
@@ -313,13 +321,12 @@ function tick() {
   
   drawGround();
   
-  updateCatSprite();
-  drawCatSprite();
+  updatePlayerAnimation();
   
   if (player.isDiving) {
-    player.targetAngle = Math.PI / 4;
-  } else if (player.isGrounded || player.velocityY < 0) {
-    player.targetAngle = Math.PI / 2;
+    player.targetAngle = -Math.PI / 4;
+  } else {
+    player.targetAngle = 0;
   }
   
   const angleDiff = player.targetAngle - player.angle;
@@ -357,8 +364,7 @@ function tick() {
     player.isGrounded = false;
   }
   
-  const vertices = getPlayerVertices();
-  drawShape(vertices, '#e74c3c');
+  drawPlayer();
 }
 
 requestAnimationFrame(tick);
