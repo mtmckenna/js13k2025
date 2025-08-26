@@ -3,8 +3,8 @@ import catImageUrl from '../assets/cat.png';
 
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
-const width = 320;
-const height = 240;
+const width = 800;
+const height = 600;
 
 canvas.id = "game";
 canvas.width = width;
@@ -66,12 +66,12 @@ interface CatSprite {
   animationTimer: number;
 }
 
-const GROUND_HEIGHT = 20;
-const GRAVITY = 0.3;
-const JUMP_FORCE = -5;
+const GROUND_HEIGHT = 50;
+const GRAVITY = 0.6;
+const JUMP_FORCE = -12;
 const GROUND_Y = height - GROUND_HEIGHT;
-const PLAYER_WIDTH = 16;
-const PLAYER_HEIGHT = 16;
+const PLAYER_WIDTH = 32;
+const PLAYER_HEIGHT = 32;
 
 const player: Player = {
   x: 50,
@@ -115,13 +115,13 @@ function generateCloud() {
 }
 
 function generateBlock() {
-  const blockHeight = Math.random() * 60 + 20;
+  const blockHeight = Math.random() * 120 + 40;
   blocks.push({
-    x: camera.x + width + Math.random() * 300,
-    width: 30,
+    x: camera.x + width + Math.random() * 600,
+    width: 60,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
-    velocityX: -0.3
+    velocityX: -0.6
   });
 }
 
@@ -135,13 +135,13 @@ for (let i = 0; i < 10; i++) {
 }
 
 for (let i = 0; i < 3; i++) {
-  const blockHeight = Math.random() * 60 + 20;
+  const blockHeight = Math.random() * 120 + 40;
   blocks.push({
-    x: player.x + width + i * 200 + Math.random() * 100,
-    width: 30,
+    x: player.x + width + i * 400 + Math.random() * 200,
+    width: 60,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
-    velocityX: -0.3
+    velocityX: -0.6
   });
 }
 
@@ -219,7 +219,7 @@ function drawPlayer() {
   ctx.drawImage(
     catImage,
     sourceX, 0, frameWidth, frameHeight,
-    -frameWidth/2, -frameHeight/2, frameWidth, frameHeight
+    -player.width/2, -player.height/2, player.width, player.height
   );
   
   ctx.restore();
@@ -333,7 +333,7 @@ function tick() {
   player.angle += angleDiff * 0.4;
 
   if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
-    player.velocityY += -.5;
+    player.velocityY += -1;
     jumpHoldTime++;
   }
 
@@ -344,7 +344,7 @@ function tick() {
   }
 
   if (player.isGrounded) {
-    player.velocityX = .5;
+    player.velocityX = 1;
   }
   
   player.y += player.velocityY;
