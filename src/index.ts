@@ -1,4 +1,6 @@
 
+import catImageUrl from '../assets/cat.png';
+
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
 const width = 320;
@@ -55,6 +57,13 @@ interface Particle {
   life: number;
 }
 
+interface CatSprite {
+  x: number;
+  y: number;
+  frameIndex: number;
+  animationTimer: number;
+}
+
 const GROUND_HEIGHT = 20;
 const GRAVITY = 0.3;
 const JUMP_FORCE = -5;
@@ -88,6 +97,16 @@ const clouds: Cloud[] = [];
 const blocks: Block[] = [];
 const particles: Particle[] = [];
 
+const catImage = new Image();
+catImage.src = catImageUrl;
+
+const catSprite: CatSprite = {
+  x: 100,
+  y: GROUND_Y - 16,
+  frameIndex: 0,
+  animationTimer: 0
+};
+
 function generateCloud() {
   clouds.push({
     x: camera.x + width + Math.random() * 200,
@@ -114,6 +133,17 @@ for (let i = 0; i < 10; i++) {
     y: Math.random() * 150 + 20,
     radius: Math.random() * 15 + 10,
     opacity: Math.random() * 0.6 + 0.2
+  });
+}
+
+for (let i = 0; i < 3; i++) {
+  const blockHeight = Math.random() * 60 + 20;
+  blocks.push({
+    x: player.x + width + i * 200 + Math.random() * 100,
+    width: 30,
+    height: blockHeight,
+    y: GROUND_Y - blockHeight,
+    velocityX: -0.3
   });
 }
 
@@ -165,6 +195,26 @@ function createExplosion(x: number, y: number) {
 function drawParticle(particle: Particle) {
   ctx.fillStyle = '#808080';
   ctx.fillRect(particle.x - camera.x, particle.y - camera.y, 3, 3);
+}
+
+function updateCatSprite() {
+  catSprite.animationTimer++;
+  if (catSprite.animationTimer >= 20) {
+    catSprite.frameIndex = (catSprite.frameIndex + 1) % 2;
+    catSprite.animationTimer = 0;
+  }
+}
+
+function drawCatSprite() {
+  const frameWidth = 16;
+  const frameHeight = 16;
+  const sourceX = catSprite.frameIndex * frameWidth;
+  
+  ctx.drawImage(
+    catImage,
+    sourceX, 0, frameWidth, frameHeight,
+    catSprite.x - camera.x, catSprite.y - camera.y, frameWidth, frameHeight
+  );
 }
 
 function getPlayerVertices(): Point[] {
@@ -226,6 +276,12 @@ function tick() {
     } else {
       if (player.isDiving && checkCollision(player, block)) {
         createExplosion(block.x + block.width/2, block.y + block.height/2);
+        
+        const bounceAngle = player.angle;
+        const bounceForce = 8;
+        player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
+        player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
+        
         blocks.splice(i, 1);
         continue;
       }
@@ -256,6 +312,9 @@ function tick() {
   }
   
   drawGround();
+  
+  updateCatSprite();
+  drawCatSprite();
   
   if (player.isDiving) {
     player.targetAngle = Math.PI / 4;
