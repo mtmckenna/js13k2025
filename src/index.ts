@@ -67,8 +67,12 @@ interface CatSprite {
 }
 
 const GROUND_HEIGHT = 50;
-const GRAVITY = 0.6;
-const JUMP_FORCE = -12;
+const GRAVITY = 0.3;
+const DIVE_GRAVITY_MULTIPLIER = 1.5;
+const JUMP_FORCE = -4;
+const JUMP_BOOST = -1;
+const NORMAL_SPEED = 1;
+const DIVE_SPEED = 4.0;
 const GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
@@ -333,18 +337,20 @@ function tick() {
   player.angle += angleDiff * 0.4;
 
   if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
-    player.velocityY += -1;
+    player.velocityY += JUMP_BOOST;
     jumpHoldTime++;
   }
 
   if (player.isDiving) {
-    player.velocityY += GRAVITY * 2;
+    player.velocityY += GRAVITY * DIVE_GRAVITY_MULTIPLIER;
   } else {
     player.velocityY += GRAVITY;
   }
 
   if (player.isGrounded) {
-    player.velocityX = 1;
+    player.velocityX = NORMAL_SPEED;
+  } else if (!player.isDiving) {
+    player.velocityX = NORMAL_SPEED;
   }
   
   player.y += player.velocityY;
@@ -375,10 +381,14 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
     if (player.isGrounded) {
       player.velocityY = JUMP_FORCE;
       player.isGrounded = false;
-    } else if (!player.isDiving) {
-      player.isDiving = true;
-      player.velocityY = Math.max(player.velocityY, 2);
-      player.velocityX = Math.max(player.velocityX, 2);
+    } else {
+      if (player.isDiving) {
+        player.isDiving = false;
+      } else {
+        player.isDiving = true;
+        player.velocityY = Math.max(player.velocityY, 2);
+        player.velocityX = DIVE_SPEED;
+      }
     }
   }
 });
@@ -387,5 +397,8 @@ window.addEventListener("keyup", (e: KeyboardEvent) => {
   if (e.key === " ") {
     jumpPressed = false;
     jumpHoldTime = 0;
+    if (!player.isGrounded && player.isDiving) {
+      player.isDiving = false;
+    }
   }
 });
