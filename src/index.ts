@@ -324,7 +324,7 @@ function tick() {
   updatePlayerAnimation();
   
   if (player.isDiving) {
-    player.targetAngle = -Math.PI / 4;
+    player.targetAngle = Math.PI / 4;
   } else {
     player.targetAngle = 0;
   }
