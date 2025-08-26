@@ -29,6 +29,8 @@ interface Player {
   targetAngle: number;
   frameIndex: number;
   animationTimer: number;
+  spinVelocity: number;
+  isSpinning: boolean;
 }
 
 interface Camera {
@@ -89,7 +91,9 @@ const player: Player = {
   angle: 0,
   targetAngle: 0,
   frameIndex: 0,
-  animationTimer: 0
+  animationTimer: 0,
+  spinVelocity: 0,
+  isSpinning: false
 };
 
 function bottomOfPlayer(player: Player): number {
@@ -294,6 +298,9 @@ function tick() {
         player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
         player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
         
+        player.isSpinning = true;
+        player.spinVelocity = 0.3;
+        
         blocks.splice(i, 1);
         continue;
       }
@@ -327,14 +334,23 @@ function tick() {
   
   updatePlayerAnimation();
   
-  if (player.isDiving) {
-    player.targetAngle = Math.PI / 4;
+  if (player.isSpinning) {
+    player.angle += player.spinVelocity;
+    player.spinVelocity *= 0.95;
+    if (player.spinVelocity < 0.05) {
+      player.isSpinning = false;
+      player.spinVelocity = 0;
+    }
   } else {
-    player.targetAngle = 0;
+    if (player.isDiving) {
+      player.targetAngle = Math.PI / 4;
+    } else {
+      player.targetAngle = 0;
+    }
+    
+    const angleDiff = player.targetAngle - player.angle;
+    player.angle += angleDiff * 0.4;
   }
-  
-  const angleDiff = player.targetAngle - player.angle;
-  player.angle += angleDiff * 0.4;
 
   if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
     player.velocityY += JUMP_BOOST;
@@ -365,6 +381,8 @@ function tick() {
     player.velocityY = 0;
     player.isGrounded = true;
     player.isDiving = false;
+    player.isSpinning = false;
+    player.spinVelocity = 0;
     jumpHoldTime = 0;
   } else {
     player.isGrounded = false;
