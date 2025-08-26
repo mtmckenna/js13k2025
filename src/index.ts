@@ -340,6 +340,7 @@ function tick() {
     if (player.spinVelocity < 0.05) {
       player.isSpinning = false;
       player.spinVelocity = 0;
+      player.angle = player.isDiving ? Math.PI / 4 : 0;
     }
   } else {
     if (player.isDiving) {
