@@ -70,7 +70,7 @@ interface CatSprite {
 
 const GROUND_HEIGHT = 50;
 const GRAVITY = 0.3;
-const DIVE_GRAVITY_MULTIPLIER = 1.5;
+const DIVE_GRAVITY_MULTIPLIER = 1.25;
 const JUMP_FORCE = -4;
 const JUMP_BOOST = -1;
 const NORMAL_SPEED = 1;
