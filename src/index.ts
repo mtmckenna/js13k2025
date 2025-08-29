@@ -142,10 +142,10 @@ for (let i = 0; i < 10; i++) {
   });
 }
 
-for (let i = 0; i < 3; i++) {
+for (let i = 0; i < 8; i++) {
   const blockHeight = Math.random() * 120 + 40;
   blocks.push({
-    x: player.x + width + i * 400 + Math.random() * 200,
+    x: player.x + width + i * 150 + Math.random() * 100,
     width: 60,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
@@ -298,6 +298,12 @@ function tick() {
         player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
         player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
         
+        // If space is held during bounce, apply jump boost
+        if (jumpPressed) {
+          //player.velocityY += JUMP_BOOST * 2; // Extra boost for bounce
+          jumpHoldTime = 0; // Reset jump hold time for consistent bounces
+        }
+        
         player.isSpinning = true;
         player.spinVelocity = 0.3;
         
@@ -312,7 +318,7 @@ function tick() {
     generateCloud();
   }
   
-  if (Math.random() < 0.01) {
+  if (Math.random() < 0.03) {
     generateBlock();
   }
   
