@@ -3,8 +3,12 @@ import catImageUrl from '../assets/cat.png';
 
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
-const width = 800;
-const height = 600;
+ctx.imageSmoothingEnabled = false;
+(ctx as any).webkitImageSmoothingEnabled = false;
+(ctx as any).mozImageSmoothingEnabled = false;
+(ctx as any).msImageSmoothingEnabled = false;
+const width = 400;
+const height = 300;
 
 canvas.id = "game";
 canvas.width = width;
@@ -71,13 +75,13 @@ interface CatSprite {
 const GROUND_HEIGHT = 50;
 const GRAVITY = 0.3;
 const DIVE_GRAVITY_MULTIPLIER = 1.25;
-const JUMP_FORCE = -4;
-const JUMP_BOOST = -1;
+const JUMP_FORCE = -3;
+const JUMP_BOOST = -.7;
 const NORMAL_SPEED = 1;
 const DIVE_SPEED = 4.0;
 const GROUND_Y = height - GROUND_HEIGHT;
-const PLAYER_WIDTH = 32;
-const PLAYER_HEIGHT = 32;
+const PLAYER_WIDTH = 16;
+const PLAYER_HEIGHT = 16;
 
 const player: Player = {
   x: 50,
@@ -123,10 +127,10 @@ function generateCloud() {
 }
 
 function generateBlock() {
-  const blockHeight = Math.random() * 120 + 40;
+  const blockHeight = Math.random() * 60 + 20;
   blocks.push({
     x: camera.x + width + Math.random() * 600,
-    width: 60,
+    width: 30,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
     velocityX: -0.6
@@ -143,10 +147,10 @@ for (let i = 0; i < 10; i++) {
 }
 
 for (let i = 0; i < 8; i++) {
-  const blockHeight = Math.random() * 120 + 40;
+  const blockHeight = Math.random() * 60 + 20;
   blocks.push({
-    x: player.x + width + i * 150 + Math.random() * 100,
-    width: 60,
+    x: player.x + width + i * 75 + Math.random() * 50,
+    width: 30,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
     velocityX: -0.6
@@ -221,14 +225,28 @@ function drawPlayer() {
   const sourceX = player.frameIndex * frameWidth;
   
   ctx.save();
-  ctx.translate(player.x + player.width/2 - camera.x, player.y + player.height/2 - camera.y);
-  ctx.rotate(player.angle);
   
-  ctx.drawImage(
-    catImage,
-    sourceX, 0, frameWidth, frameHeight,
-    -player.width/2, -player.height/2, player.width, player.height
-  );
+  if (Math.abs(player.angle) < 0.01) {
+    // Draw without rotation at native size for pixel-perfect rendering
+    const drawX = Math.round(player.x - camera.x);
+    const drawY = Math.round(player.y - camera.y);
+    ctx.drawImage(
+      catImage,
+      sourceX, 0, frameWidth, frameHeight,
+      drawX, drawY, frameWidth, frameHeight
+    );
+  } else {
+    // Use rotation when spinning/diving
+    const drawX = Math.round(player.x + player.width/2 - camera.x);
+    const drawY = Math.round(player.y + player.height/2 - camera.y);
+    ctx.translate(drawX, drawY);
+    ctx.rotate(player.angle);
+    ctx.drawImage(
+      catImage,
+      sourceX, 0, frameWidth, frameHeight,
+      -frameWidth/2, -frameHeight/2, frameWidth, frameHeight
+    );
+  }
   
   ctx.restore();
 }
@@ -290,11 +308,11 @@ function tick() {
     if (block.x < camera.x - 100) {
       blocks.splice(i, 1);
     } else {
-      if (player.isDiving && checkCollision(player, block)) {
+      if (checkCollision(player, block) && player.velocityY > 0) {
         createExplosion(block.x + block.width/2, block.y + block.height/2);
         
         const bounceAngle = player.angle;
-        const bounceForce = 8;
+        const bounceForce = 4;
         player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
         player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
         
