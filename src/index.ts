@@ -4,11 +4,9 @@ import catImageUrl from '../assets/cat.png';
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
-(ctx as any).webkitImageSmoothingEnabled = false;
-(ctx as any).mozImageSmoothingEnabled = false;
-(ctx as any).msImageSmoothingEnabled = false;
-const width = 400;
-const height = 300;
+const width = 1024;
+const height = 768;
+const CAT_SCALE = 6;
 
 canvas.id = "game";
 canvas.width = width;
@@ -48,6 +46,7 @@ interface Cloud {
   radius: number;
   opacity: number;
   velocityX: number;
+  circles: { x: number; y: number; radius: number }[];
 }
 
 interface Block {
@@ -73,16 +72,16 @@ interface CatSprite {
   animationTimer: number;
 }
 
-const GROUND_HEIGHT = 50;
+const GROUND_HEIGHT = 120;
 const GRAVITY = 0.1;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
-const JUMP_FORCE = -2.0;
-const JUMP_BOOST = -.34;
-const NORMAL_SPEED = .5;
-const DIVE_SPEED = 1.5;
+const JUMP_FORCE = -4.0;
+const JUMP_BOOST = -.7;
+const NORMAL_SPEED = 1.2;
+const DIVE_SPEED = 3.6;
 const GROUND_Y = height - GROUND_HEIGHT;
-const PLAYER_WIDTH = 16;
-const PLAYER_HEIGHT = 16;
+const PLAYER_WIDTH = 32;
+const PLAYER_HEIGHT = 32;
 
 const player: Player = {
   x: 50,
@@ -119,44 +118,72 @@ catImage.src = catImageUrl;
 
 
 function generateCloud() {
+  const baseRadius = Math.random() * 30 + 20;
+  const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
+  const circles = [];
+  
+  // Create multiple overlapping circles
+  for (let i = 0; i < numCircles; i++) {
+    circles.push({
+      x: (Math.random() - 0.5) * baseRadius * 0.8,
+      y: (Math.random() - 0.5) * baseRadius * 0.6,
+      radius: baseRadius * (0.6 + Math.random() * 0.4)
+    });
+  }
+  
   clouds.push({
-    x: camera.x + width + Math.random() * 200,
-    y: Math.random() * 150 + 20,
-    radius: Math.random() * 15 + 10,
-    opacity: Math.random() * 0.6 + 0.2,
-    velocityX: -0.2
+    x: camera.x + width + Math.random() * 400,
+    y: Math.random() * 300 + 50, // Spread vertically more
+    radius: baseRadius,
+    opacity: Math.random() * 0.4 + 0.3,
+    velocityX: -0.2 - Math.random() * 0.3, // More varied parallax speeds
+    circles: circles
   });
 }
 
 function generateBlock() {
-  const blockHeight = Math.random() * 60 + 20;
+  const blockHeight = Math.random() * 150 + 50;
   blocks.push({
-    x: camera.x + width + Math.random() * 600,
-    width: 30,
+    x: camera.x + width + Math.random() * 1500,
+    width: 75,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
-    velocityX: -0.6
+    velocityX: -1.5
   });
 }
 
 for (let i = 0; i < 10; i++) {
+  const baseRadius = Math.random() * 30 + 20;
+  const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
+  const circles = [];
+  
+  // Create multiple overlapping circles
+  for (let j = 0; j < numCircles; j++) {
+    circles.push({
+      x: (Math.random() - 0.5) * baseRadius * 0.8,
+      y: (Math.random() - 0.5) * baseRadius * 0.6,
+      radius: baseRadius * (0.6 + Math.random() * 0.4)
+    });
+  }
+  
   clouds.push({
-    x: Math.random() * width * 2,
-    y: Math.random() * 150 + 20,
-    radius: Math.random() * 15 + 10,
-    opacity: Math.random() * 0.6 + 0.2,
-    velocityX: -0.2
+    x: Math.random() * width * 3,
+    y: Math.random() * 300 + 50,
+    radius: baseRadius,
+    opacity: Math.random() * 0.4 + 0.3,
+    velocityX: -0.2 - Math.random() * 0.3,
+    circles: circles
   });
 }
 
 for (let i = 0; i < 8; i++) {
-  const blockHeight = Math.random() * 60 + 20;
+  const blockHeight = Math.random() * 150 + 50;
   blocks.push({
-    x: player.x + width + i * 75 + Math.random() * 50,
-    width: 30,
+    x: player.x + width + i * 200 + Math.random() * 150,
+    width: 75,
     height: blockHeight,
     y: GROUND_Y - blockHeight,
-    velocityX: -0.6
+    velocityX: -1.5
   });
 }
 
@@ -177,13 +204,30 @@ function drawShape(points: Point[], color: string) {
 
 function drawCloud(cloud: Cloud) {
   ctx.save();
+  
+  // First circle at full opacity
   ctx.globalAlpha = cloud.opacity;
   ctx.fillStyle = '#ffffff';
+  let firstCircle = cloud.circles[0];
+  let drawX = Math.floor(cloud.x + firstCircle.x - camera.x);
+  let drawY = Math.floor(cloud.y + firstCircle.y - camera.y);
   ctx.beginPath();
-  const drawX = Math.floor(cloud.x - camera.x);
-  const drawY = Math.floor(cloud.y - camera.y);
-  ctx.arc(drawX, drawY, cloud.radius, 0, Math.PI * 2);
+  ctx.arc(drawX, drawY, firstCircle.radius, 0, Math.PI * 2);
   ctx.fill();
+  
+  // Remaining circles with lighter blend mode
+  // ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = cloud.opacity * 0.3; // Much lower opacity for overlaps
+  
+  for (let i = 1; i < cloud.circles.length; i++) {
+    const circle = cloud.circles[i];
+    drawX = Math.floor(cloud.x + circle.x - camera.x);
+    drawY = Math.floor(cloud.y + circle.y - camera.y);
+    ctx.beginPath();
+    ctx.arc(drawX, drawY, circle.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
   ctx.restore();
 }
 
@@ -231,15 +275,20 @@ function drawPlayer() {
   const sourceX = player.frameIndex * frameWidth;
   
   ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  (ctx as any).webkitImageSmoothingEnabled = false;
+  (ctx as any).mozImageSmoothingEnabled = false;
+  (ctx as any).msImageSmoothingEnabled = false;
+
   
   if (Math.abs(player.angle) < 0.01) {
-    // Draw without rotation at native size for pixel-perfect rendering
+    // Draw without rotation scaled to player size
     const drawX = Math.floor(player.x - camera.x);
     const drawY = Math.floor(player.y - camera.y);
     ctx.drawImage(
       catImage,
       sourceX, 0, frameWidth, frameHeight,
-      drawX, drawY, frameWidth, frameHeight
+      drawX, drawY, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
     );
   } else {
     // Use rotation when spinning/diving
@@ -250,7 +299,7 @@ function drawPlayer() {
     ctx.drawImage(
       catImage,
       sourceX, 0, frameWidth, frameHeight,
-      -frameWidth/2, -frameHeight/2, frameWidth, frameHeight
+      -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
     );
   }
   
@@ -297,7 +346,7 @@ function tick() {
   
   for (let i = clouds.length - 1; i >= 0; i--) {
     const cloud = clouds[i];
-    cloud.x = Math.floor(cloud.x + cloud.velocityX);
+    cloud.x += cloud.velocityX;
     if (cloud.x < camera.x - 100) {
       clouds.splice(i, 1);
     } else {
@@ -307,7 +356,7 @@ function tick() {
   
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i];
-    block.x = Math.floor(block.x + block.velocityX);
+    block.x += block.velocityX;
     if (block.x < camera.x - 100) {
       blocks.splice(i, 1);
     } else {
@@ -397,11 +446,11 @@ function tick() {
     player.velocityX = NORMAL_SPEED;
   }
   
-  player.y = Math.floor(player.y + player.velocityY);
-  player.x = Math.floor(player.x + player.velocityX);
+  player.y += player.velocityY;
+  player.x += player.velocityX;
   
-  camera.x = Math.floor(player.x - width / 2);
-  camera.y = Math.floor(GROUND_Y - height + GROUND_HEIGHT);
+  camera.x = player.x - width / 5;
+  camera.y = GROUND_Y - height + GROUND_HEIGHT;
   
   //debug
   if (bottomOfPlayer(player) >= GROUND_Y) {
