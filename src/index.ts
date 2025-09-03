@@ -47,6 +47,7 @@ interface Cloud {
   y: number;
   radius: number;
   opacity: number;
+  velocityX: number;
 }
 
 interface Block {
@@ -122,7 +123,8 @@ function generateCloud() {
     x: camera.x + width + Math.random() * 200,
     y: Math.random() * 150 + 20,
     radius: Math.random() * 15 + 10,
-    opacity: Math.random() * 0.6 + 0.2
+    opacity: Math.random() * 0.6 + 0.2,
+    velocityX: -0.2
   });
 }
 
@@ -142,7 +144,8 @@ for (let i = 0; i < 10; i++) {
     x: Math.random() * width * 2,
     y: Math.random() * 150 + 20,
     radius: Math.random() * 15 + 10,
-    opacity: Math.random() * 0.6 + 0.2
+    opacity: Math.random() * 0.6 + 0.2,
+    velocityX: -0.2
   });
 }
 
@@ -177,17 +180,18 @@ function drawCloud(cloud: Cloud) {
   ctx.globalAlpha = cloud.opacity;
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.arc(cloud.x - camera.x, cloud.y - camera.y, cloud.radius, 0, Math.PI * 2);
+  const drawX = Math.floor(cloud.x - camera.x);
+  const drawY = Math.floor(cloud.y - camera.y);
+  ctx.arc(drawX, drawY, cloud.radius, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
 
 function drawBlock(block: Block) {
+  const drawX = Math.floor(block.x - camera.x);
+  const drawY = Math.floor(block.y - camera.y);
   ctx.fillStyle = '#808080';
-  ctx.fillRect(block.x - camera.x, block.y - camera.y, block.width, block.height);
-  ctx.strokeStyle = '#606060';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(block.x - camera.x, block.y - camera.y, block.width, block.height);
+  ctx.fillRect(drawX, drawY, block.width, block.height);
 }
 
 function createExplosion(x: number, y: number) {
@@ -203,8 +207,10 @@ function createExplosion(x: number, y: number) {
 }
 
 function drawParticle(particle: Particle) {
+  const drawX = Math.floor(particle.x - camera.x);
+  const drawY = Math.floor(particle.y - camera.y);
   ctx.fillStyle = '#808080';
-  ctx.fillRect(particle.x - camera.x, particle.y - camera.y, 3, 3);
+  ctx.fillRect(drawX, drawY, 3, 3);
 }
 
 function updatePlayerAnimation() {
@@ -228,8 +234,8 @@ function drawPlayer() {
   
   if (Math.abs(player.angle) < 0.01) {
     // Draw without rotation at native size for pixel-perfect rendering
-    const drawX = Math.round(player.x - camera.x);
-    const drawY = Math.round(player.y - camera.y);
+    const drawX = Math.floor(player.x - camera.x);
+    const drawY = Math.floor(player.y - camera.y);
     ctx.drawImage(
       catImage,
       sourceX, 0, frameWidth, frameHeight,
@@ -237,8 +243,8 @@ function drawPlayer() {
     );
   } else {
     // Use rotation when spinning/diving
-    const drawX = Math.round(player.x + player.width/2 - camera.x);
-    const drawY = Math.round(player.y + player.height/2 - camera.y);
+    const drawX = Math.floor(player.x + player.width/2 - camera.x);
+    const drawY = Math.floor(player.y + player.height/2 - camera.y);
     ctx.translate(drawX, drawY);
     ctx.rotate(player.angle);
     ctx.drawImage(
@@ -281,10 +287,6 @@ function checkCollision(rect1: {x: number, y: number, width: number, height: num
 function drawGround() {
   ctx.fillStyle = '#27ae60';
   ctx.fillRect(0, GROUND_Y - camera.y, width, GROUND_HEIGHT);
-  // draw brder around ground for debug
-  ctx.strokeStyle = '#2c3e50';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, GROUND_Y - camera.y, width, GROUND_HEIGHT);
 }
 
 function tick() {
@@ -295,6 +297,7 @@ function tick() {
   
   for (let i = clouds.length - 1; i >= 0; i--) {
     const cloud = clouds[i];
+    cloud.x = Math.floor(cloud.x + cloud.velocityX);
     if (cloud.x < camera.x - 100) {
       clouds.splice(i, 1);
     } else {
@@ -304,7 +307,7 @@ function tick() {
   
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i];
-    block.x += block.velocityX;
+    block.x = Math.floor(block.x + block.velocityX);
     if (block.x < camera.x - 100) {
       blocks.splice(i, 1);
     } else {
@@ -394,11 +397,11 @@ function tick() {
     player.velocityX = NORMAL_SPEED;
   }
   
-  player.y += player.velocityY;
-  player.x += player.velocityX;
+  player.y = Math.floor(player.y + player.velocityY);
+  player.x = Math.floor(player.x + player.velocityX);
   
-  camera.x = player.x - width / 2;
-  camera.y = GROUND_Y - height + GROUND_HEIGHT;
+  camera.x = Math.floor(player.x - width / 2);
+  camera.y = Math.floor(GROUND_Y - height + GROUND_HEIGHT);
   
   //debug
   if (bottomOfPlayer(player) >= GROUND_Y) {
