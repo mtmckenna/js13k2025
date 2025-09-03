@@ -78,17 +78,29 @@ const GRAVITY = 0.1;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
 const JUMP_FORCE = -2.5;
 const JUMP_BOOST = -.7;
-const NORMAL_SPEED = 1.2;
-const DIVE_SPEED = 3.6;
+const NORMAL_SPEED = 1;
+const DIVE_SPEED = 3;
 const GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
 
 // Camera constants
 const CAMERA_OFFSET_SPEED = 0.015;
-const CAMERA_ROTATION_SPEED = 0.01;
-const CAMERA_TILT_MULTIPLIER = 0.03;
+const CAMERA_ROTATION_SPEED = 0.02;
+const CAMERA_TILT_MULTIPLIER = 0.05;
 const CAMERA_ZOOM_SPEED = 0.08;
+const JUMP_ZOOM_OUT = 0.9; // Zoom level when jumping (not diving)
+const DIVE_ZOOM_OUT = 0.8; // Zoom level when diving
+
+// Shadow constants
+const SHADOW_WIDTH_SCALE = 1.7; // Shadow width relative to player
+const SHADOW_HEIGHT_SCALE = 0.5; // Shadow height relative to player
+const SHADOW_MIN_SCALE = 0.25; // Minimum shadow size when high up
+const SHADOW_MAX_HEIGHT = 400; // Max height for shadow visibility
+const SHADOW_MIN_OPACITY = 0.3; // Minimum shadow opacity
+const SHADOW_OFFSET_X = 0; // Horizontal offset from player center
+const SHADOW_OFFSET_Y = -30; // Vertical offset from ground surface
+const SHADOW_SCALE_RATE = .5; // Rate at which shadow shrinks with height (1.0 = normal, 2.0 = faster, 0.5 = slower)
 
 const player: Player = {
   x: 50,
@@ -362,6 +374,35 @@ function drawPlayer() {
   ctx.restore();
 }
 
+function drawPlayerShadow() {
+  // Calculate shadow position with adjustable offsets
+  const shadowX = Math.floor(player.x + player.width/2 - camera.x + SHADOW_OFFSET_X);
+  const shadowY = Math.floor(GROUND_Y - camera.y + GROUND_HEIGHT/2 + SHADOW_OFFSET_Y); // Position on ground surface
+  
+  // Shadow gets smaller and more transparent the higher the player is
+  const heightFromGround = GROUND_Y - (player.y + player.height);
+  const heightRatio = (heightFromGround * SHADOW_SCALE_RATE) / SHADOW_MAX_HEIGHT;
+  const shadowScale = Math.max(SHADOW_MIN_SCALE, Math.min(1.2, 1 - heightRatio));
+  const shadowOpacity = Math.max(SHADOW_MIN_OPACITY, shadowScale * 0.5);
+  
+  ctx.save();
+  ctx.globalAlpha = shadowOpacity;
+  ctx.fillStyle = '#111'; // Darker green shadow on grass
+  
+  // Draw oval shadow with proper scaling
+  ctx.beginPath();
+  ctx.ellipse(
+    shadowX, 
+    shadowY,
+    player.width * shadowScale * SHADOW_WIDTH_SCALE, 
+    player.height * shadowScale * SHADOW_HEIGHT_SCALE, 
+    0, 0, Math.PI * 2
+  );
+  ctx.fill();
+  
+  ctx.restore();
+}
+
 function getPlayerVertices(): Point[] {
   const dirX = Math.cos(player.angle);
   const dirY = Math.sin(player.angle);
@@ -553,12 +594,18 @@ function tick() {
   }
   cameraAngle += (targetCameraAngle - cameraAngle) * CAMERA_ROTATION_SPEED;
   
-  // Zoom out when diving for wider view
-  const targetZoom = player.isDiving ? 0.85 : 1.0;
+  // Zoom out when jumping, zoom out more when diving
+  let targetZoom = 1.0; // Normal zoom when on ground
+  if (!player.isGrounded) {
+    targetZoom = player.isDiving ? DIVE_ZOOM_OUT : JUMP_ZOOM_OUT; // More zoom out when diving, less when just jumping
+  }
   cameraZoom += (targetZoom - cameraZoom) * CAMERA_ZOOM_SPEED;
   
   // Bias camera up when zooming out to show more sky
-  const targetOffsetY = player.isDiving ? -60 : 0; // Move camera up when diving
+  let targetOffsetY = 0; // Normal position when on ground
+  if (!player.isGrounded) {
+    targetOffsetY = player.isDiving ? -60 : -30; // More offset when diving, less when jumping
+  }
   cameraOffsetY += (targetOffsetY - cameraOffsetY) * CAMERA_ZOOM_SPEED;
   
   camera.x = player.x - width / 5 + cameraOffsetX;
@@ -577,6 +624,7 @@ function tick() {
     player.isGrounded = false;
   }
   
+  drawPlayerShadow();
   drawPlayer();
   
   ctx.restore(); // Restore camera rotation
