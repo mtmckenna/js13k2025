@@ -326,7 +326,8 @@ function updatePlayerAnimation() {
 function drawPlayer() {
   const frameWidth = 16;
   const frameHeight = 16;
-  const sourceX = player.frameIndex * frameWidth;
+  const paddedFrameWidth = frameWidth + 2; // Account for 1px padding on each side
+  const sourceX = player.frameIndex * paddedFrameWidth + 1; // Offset by 1px for left padding
   
   ctx.save();
   ctx.imageSmoothingEnabled = false;
@@ -343,8 +344,8 @@ function drawPlayer() {
   
   ctx.drawImage(
     catImage,
-    sourceX, 0, frameWidth, frameHeight,
-    -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameWidth * CAT_SCALE
+    sourceX, 1, frameWidth, frameHeight, // Y offset by 1px for top padding
+    -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
   );
   
   ctx.restore();
