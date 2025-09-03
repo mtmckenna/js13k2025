@@ -75,7 +75,7 @@ interface CatSprite {
 const GROUND_HEIGHT = 120;
 const GRAVITY = 0.1;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
-const JUMP_FORCE = -4.0;
+const JUMP_FORCE = -2.5;
 const JUMP_BOOST = -.7;
 const NORMAL_SPEED = 1.2;
 const DIVE_SPEED = 3.6;
@@ -260,7 +260,7 @@ function drawParticle(particle: Particle) {
 function updatePlayerAnimation() {
   if (player.isGrounded) {
     player.animationTimer++;
-    if (player.animationTimer >= 10) {
+    if (player.animationTimer >= 15) { // Slower animation
       player.frameIndex = (player.frameIndex + 1) % 2;
       player.animationTimer = 0;
     }
@@ -281,27 +281,20 @@ function drawPlayer() {
   (ctx as any).msImageSmoothingEnabled = false;
 
   
-  if (Math.abs(player.angle) < 0.01) {
-    // Draw without rotation scaled to player size
-    const drawX = Math.floor(player.x - camera.x);
-    const drawY = Math.floor(player.y - camera.y);
-    ctx.drawImage(
-      catImage,
-      sourceX, 0, frameWidth, frameHeight,
-      drawX, drawY, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
-    );
-  } else {
-    // Use rotation when spinning/diving
-    const drawX = Math.floor(player.x + player.width/2 - camera.x);
-    const drawY = Math.floor(player.y + player.height/2 - camera.y);
-    ctx.translate(drawX, drawY);
+  // Always center the sprite for consistent positioning
+  const drawX = Math.floor(player.x + player.width/2 - camera.x);
+  const drawY = Math.floor(player.y + player.height/2 - camera.y);
+  ctx.translate(drawX, drawY);
+  
+  if (Math.abs(player.angle) > 0.001) {
     ctx.rotate(player.angle);
-    ctx.drawImage(
-      catImage,
-      sourceX, 0, frameWidth, frameHeight,
-      -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
-    );
   }
+  
+  ctx.drawImage(
+    catImage,
+    sourceX, 0, frameWidth, frameHeight,
+    -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
+  );
   
   ctx.restore();
 }
@@ -326,6 +319,7 @@ function getPlayerVertices(): Point[] {
 }
 
 function checkCollision(rect1: {x: number, y: number, width: number, height: number}, rect2: {x: number, y: number, width: number, height: number}): boolean {
+  // return false;
   return rect1.x < rect2.x + rect2.width &&
          rect1.x + rect1.width > rect2.x &&
          rect1.y < rect2.y + rect2.height &&
@@ -426,7 +420,7 @@ function tick() {
     }
     
     const angleDiff = player.targetAngle - player.angle;
-    player.angle += angleDiff * 0.4;
+    player.angle += angleDiff * 0.1; // Much slower rotation interpolation
   }
 
   if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
