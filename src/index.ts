@@ -84,6 +84,12 @@ const GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
 
+// Camera constants
+const CAMERA_OFFSET_SPEED = 0.015;
+const CAMERA_ROTATION_SPEED = 0.01;
+const CAMERA_TILT_MULTIPLIER = 0.02;
+const CAMERA_ZOOM_SPEED = 0.02;
+
 const player: Player = {
   x: 50,
   y: GROUND_Y,
@@ -109,6 +115,10 @@ const camera: Camera = {
   x: 0,
   y: 0
 };
+
+let cameraOffsetX = 0; // Smooth camera offset for diving
+let cameraAngle = 0; // Smooth camera rotation
+let cameraZoom = 1.0; // Camera zoom for speed effect
 
 const clouds: Cloud[] = [];
 const blocks: Block[] = [];
@@ -286,7 +296,7 @@ function drawBlock(block: Block) {
     const progress = i / segments; // 0 to 1
     const y = stringStartY + (progress * stringLength);
     const wiggleAmount = progress * 4; // More wiggle towards bottom
-    const wiggle = Math.sin(y * 0.08 + Date.now() * 0.002) * wiggleAmount;
+    const wiggle = Math.sin(y * 0.1 + Date.now() * 0.002) * wiggleAmount;
     ctx.lineTo(centerX + wiggle, y);
   }
   ctx.stroke();
@@ -393,14 +403,30 @@ function checkCollision(rect1: {x: number, y: number, width: number, height: num
 
 function drawGround() {
   ctx.fillStyle = '#27ae60';
-  ctx.fillRect(0, GROUND_Y - camera.y, width, GROUND_HEIGHT);
+  // Extend ground to cover rotated corners
+  ctx.fillRect(-width * 0.5, GROUND_Y - camera.y, width * 2, GROUND_HEIGHT);
 }
 
 function tick() {
   requestAnimationFrame(tick);
   
+  ctx.save();
+  
+  // Apply camera rotation and zoom
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(cameraZoom, cameraZoom);
+  if (Math.abs(cameraAngle) > 0.01) {
+    ctx.rotate(cameraAngle);
+  }
+  ctx.translate(-width / 2, -height / 2);
+  
+  // Make background larger to cover rotated corners
   ctx.fillStyle = '#87CEEB';
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(-width * 0.5, -height * 0.5, width * 2, height * 2);
+  
+  // Fill bottom area with grass color to match ground
+  ctx.fillStyle = '#27ae60';
+  ctx.fillRect(-width * 0.5, GROUND_Y - camera.y, width * 2, height * 2);
   
   for (let i = clouds.length - 1; i >= 0; i--) {
     const cloud = clouds[i];
@@ -513,7 +539,27 @@ function tick() {
   player.y += player.velocityY;
   player.x += player.velocityX;
   
-  camera.x = player.x - width / 5;
+  // Smooth camera offset for diving - look ahead horizontally
+  const targetOffsetX = player.isDiving ? 100 : 0; // Look ahead when diving
+  cameraOffsetX += (targetOffsetX - cameraOffsetX) * CAMERA_OFFSET_SPEED;
+  
+  // Camera tilt only during controlled diving, not spinning
+  let targetCameraAngle = 0;
+  if (player.isDiving && !player.isSpinning) {
+    // Normalize player angle to [-π, π] range for camera
+    let normalizedAngle = player.angle;
+    while (normalizedAngle > Math.PI) normalizedAngle -= 2 * Math.PI;
+    while (normalizedAngle < -Math.PI) normalizedAngle += 2 * Math.PI;
+    
+    targetCameraAngle = normalizedAngle * CAMERA_TILT_MULTIPLIER;
+  }
+  cameraAngle += (targetCameraAngle - cameraAngle) * CAMERA_ROTATION_SPEED;
+  
+  // Zoom in slightly when diving for speed effect
+  const targetZoom = player.isDiving ? 1.1 : 1.0;
+  cameraZoom += (targetZoom - cameraZoom) * CAMERA_ZOOM_SPEED;
+  
+  camera.x = player.x - width / 5 + cameraOffsetX;
   camera.y = GROUND_Y - height + GROUND_HEIGHT;
   
   //debug
@@ -530,6 +576,8 @@ function tick() {
   }
   
   drawPlayer();
+  
+  ctx.restore(); // Restore camera rotation
 }
 
 requestAnimationFrame(tick);
