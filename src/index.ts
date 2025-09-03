@@ -55,6 +55,7 @@ interface Block {
   width: number;
   height: number;
   velocityX: number;
+  color: string;
 }
 
 interface Particle {
@@ -142,13 +143,19 @@ function generateCloud() {
 }
 
 function generateBlock() {
-  const blockHeight = Math.random() * 150 + 50;
+  const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+  const balloonSize = 60; // Fixed balloon size
+  const stringLength = 40; // Fixed shorter string length
+  const balloonBodyHeight = balloonSize * 1.2; // 72px
+  const heightFromGround = Math.random() * 200 + 100; // Much more variety (100-300px from ground)
+  
   blocks.push({
     x: camera.x + width + Math.random() * 1500,
-    width: 75,
-    height: blockHeight,
-    y: GROUND_Y - blockHeight,
-    velocityX: -1.5
+    width: balloonSize,
+    height: balloonBodyHeight + stringLength, // Balloon body + fixed string
+    y: GROUND_Y - heightFromGround,
+    velocityX: -1.5,
+    color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
 }
 
@@ -177,13 +184,19 @@ for (let i = 0; i < 10; i++) {
 }
 
 for (let i = 0; i < 8; i++) {
-  const blockHeight = Math.random() * 150 + 50;
+  const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+  const balloonSize = 60; // Fixed balloon size
+  const stringLength = 40; // Fixed shorter string length
+  const balloonBodyHeight = balloonSize * 1.2; // 72px
+  const heightFromGround = Math.random() * 200 + 100; // Much more variety (100-300px from ground)
+  
   blocks.push({
     x: player.x + width + i * 200 + Math.random() * 150,
-    width: 75,
-    height: blockHeight,
-    y: GROUND_Y - blockHeight,
-    velocityX: -1.5
+    width: balloonSize,
+    height: balloonBodyHeight + stringLength,
+    y: GROUND_Y - heightFromGround,
+    velocityX: -1.5,
+    color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
 }
 
@@ -234,8 +247,49 @@ function drawCloud(cloud: Cloud) {
 function drawBlock(block: Block) {
   const drawX = Math.floor(block.x - camera.x);
   const drawY = Math.floor(block.y - camera.y);
-  ctx.fillStyle = '#808080';
-  ctx.fillRect(drawX, drawY, block.width, block.height);
+  
+  // Calculate balloon body dimensions (fixed 60px balloon)
+  const balloonBodyHeight = 72; // 60 * 1.2
+  const stringLength = 40; // Fixed string length
+  const centerX = drawX + block.width / 2;
+  const balloonCenterY = drawY + balloonBodyHeight / 2;
+  
+  // Draw balloon body (oval)
+  ctx.fillStyle = block.color;
+  ctx.beginPath();
+  ctx.ellipse(centerX, balloonCenterY, block.width/2, balloonBodyHeight/2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Draw tie-off nub at bottom of balloon (small upward triangle into balloon)
+  ctx.fillStyle = block.color;
+  ctx.beginPath();
+  const nubPoint = drawY + balloonBodyHeight - 4; // point goes up into balloon
+  const nubBase = drawY + balloonBodyHeight + 2;
+  ctx.moveTo(centerX, nubPoint); // top point (in balloon)
+  ctx.lineTo(centerX - 3, nubBase); // bottom left
+  ctx.lineTo(centerX + 3, nubBase); // bottom right
+  ctx.closePath();
+  ctx.fill();
+  
+  // Draw wiggly white string anchored at balloon
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  
+  // String starts fixed at balloon nub base
+  const stringStartY = nubBase;
+  ctx.moveTo(centerX, stringStartY);
+  
+  // Create natural hanging wiggle - more wiggle at bottom, less at top
+  const segments = 8;
+  for (let i = 1; i <= segments; i++) {
+    const progress = i / segments; // 0 to 1
+    const y = stringStartY + (progress * stringLength);
+    const wiggleAmount = progress * 4; // More wiggle towards bottom
+    const wiggle = Math.sin(y * 0.08 + Date.now() * 0.002) * wiggleAmount;
+    ctx.lineTo(centerX + wiggle, y);
+  }
+  ctx.stroke();
 }
 
 function createExplosion(x: number, y: number) {
@@ -315,12 +369,24 @@ function getPlayerVertices(): Point[] {
   ];
 }
 
-function checkCollision(rect1: {x: number, y: number, width: number, height: number}, rect2: {x: number, y: number, width: number, height: number}): boolean {
-  // return false;
-  return rect1.x < rect2.x + rect2.width &&
-         rect1.x + rect1.width > rect2.x &&
-         rect1.y < rect2.y + rect2.height &&
-         rect1.y + rect1.height > rect2.y;
+function checkCollision(rect1: {x: number, y: number, width: number, height: number}, block: {x: number, y: number, width: number, height: number}): boolean {
+  // Check collision with balloon body (oval), not the string
+  const balloonBodyHeight = 72; // Fixed balloon body height
+  const balloonCenterX = block.x + block.width / 2;
+  const balloonCenterY = block.y + balloonBodyHeight / 2;
+  const balloonRadiusX = block.width / 2;
+  const balloonRadiusY = balloonBodyHeight / 2;
+  
+  // Simple rectangle vs ellipse collision (approximate with expanded rectangle)
+  const expandedBlockX = balloonCenterX - balloonRadiusX;
+  const expandedBlockY = balloonCenterY - balloonRadiusY;
+  const expandedBlockWidth = balloonRadiusX * 2;
+  const expandedBlockHeight = balloonRadiusY * 2;
+  
+  return rect1.x < expandedBlockX + expandedBlockWidth &&
+         rect1.x + rect1.width > expandedBlockX &&
+         rect1.y < expandedBlockY + expandedBlockHeight &&
+         rect1.y + rect1.height > expandedBlockY;
 }
 
 
