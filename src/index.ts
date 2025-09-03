@@ -33,6 +33,7 @@ interface Player {
   animationTimer: number;
   spinVelocity: number;
   isSpinning: boolean;
+  hasDoubleJumped: boolean;
 }
 
 interface Camera {
@@ -81,6 +82,7 @@ const GROUND_HEIGHT = 120;
 const GRAVITY = 0.2;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
 const JUMP_FORCE = -3.2;
+const DOUBLE_JUMP_FORCE = -2.8;
 const JUMP_BOOST = -1;
 const NORMAL_SPEED = 3;
 const DIVE_SPEED = 5;
@@ -120,7 +122,8 @@ const player: Player = {
   frameIndex: 0,
   animationTimer: 0,
   spinVelocity: 0,
-  isSpinning: false
+  isSpinning: false,
+  hasDoubleJumped: false
 };
 
 function bottomOfPlayer(player: Player): number {
@@ -230,6 +233,10 @@ for (let i = 0; i < 8; i++) {
 let jumpPressed = false;
 let jumpHoldTime = 0;
 const MAX_JUMP_HOLD_TIME = 15;
+
+// Double jump variables
+let lastJumpTime = 0;
+const DOUBLE_JUMP_WINDOW = 300; // milliseconds to allow double jump
 
 function drawShape(points: Point[], color: string) {
   ctx.fillStyle = color;
@@ -651,6 +658,7 @@ function tick(currentTime = 0) {
     player.isDiving = false;
     player.isSpinning = false;
     player.spinVelocity = 0;
+    player.hasDoubleJumped = false; // Reset double jump when landing
     jumpHoldTime = 0;
   } else {
     player.isGrounded = false;
@@ -667,16 +675,34 @@ requestAnimationFrame(tick);
 function handleJumpStart() {
   if (!jumpPressed) {
     jumpPressed = true;
+    const currentTime = performance.now();
+    
     if (player.isGrounded) {
+      // Regular jump from ground
       player.velocityY = JUMP_FORCE;
       player.isGrounded = false;
+      player.hasDoubleJumped = false;
+      lastJumpTime = currentTime;
     } else {
-      if (player.isDiving) {
-        player.isDiving = false;
+      // Check for double jump (quick succession taps while in air)
+      const timeSinceLastJump = currentTime - lastJumpTime;
+      if (timeSinceLastJump < DOUBLE_JUMP_WINDOW && !player.hasDoubleJumped && !player.isDiving) {
+        // Double jump!
+        player.velocityY = DOUBLE_JUMP_FORCE;
+        player.hasDoubleJumped = true;
+        player.isSpinning = true;
+        player.spinVelocity = 0.3;
+        lastJumpTime = currentTime;
       } else {
-        player.isDiving = true;
-        player.velocityY = Math.max(player.velocityY, 2);
-        player.velocityX = DIVE_SPEED;
+        // Regular dive toggle logic
+        if (player.isDiving) {
+          player.isDiving = false;
+        } else {
+          player.isDiving = true;
+          player.velocityY = Math.max(player.velocityY, 2);
+          player.velocityX = DIVE_SPEED;
+        }
+        lastJumpTime = currentTime;
       }
     }
   }
