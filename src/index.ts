@@ -87,7 +87,7 @@ const PLAYER_HEIGHT = 32;
 // Camera constants
 const CAMERA_OFFSET_SPEED = 0.015;
 const CAMERA_ROTATION_SPEED = 0.01;
-const CAMERA_TILT_MULTIPLIER = 0.02;
+const CAMERA_TILT_MULTIPLIER = 0.03;
 const CAMERA_ZOOM_SPEED = 0.08;
 
 const player: Player = {
@@ -547,12 +547,9 @@ function tick() {
   // Camera tilt only during controlled diving, not spinning
   let targetCameraAngle = 0;
   if (player.isDiving && !player.isSpinning) {
-    // Normalize player angle to [-π, π] range for camera
-    let normalizedAngle = player.angle;
-    while (normalizedAngle > Math.PI) normalizedAngle -= 2 * Math.PI;
-    while (normalizedAngle < -Math.PI) normalizedAngle += 2 * Math.PI;
-    
-    targetCameraAngle = normalizedAngle * CAMERA_TILT_MULTIPLIER;
+    // Clamp the angle to reasonable range for camera tilt
+    let clampedAngle = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, player.angle));
+    targetCameraAngle = clampedAngle * CAMERA_TILT_MULTIPLIER;
   }
   cameraAngle += (targetCameraAngle - cameraAngle) * CAMERA_ROTATION_SPEED;
   
