@@ -78,12 +78,12 @@ interface CatSprite {
 }
 
 const GROUND_HEIGHT = 120;
-const GRAVITY = 0.1;
+const GRAVITY = 0.2;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
-const JUMP_FORCE = -2.5;
-const JUMP_BOOST = -.7;
-const NORMAL_SPEED = 1;
-const DIVE_SPEED = 3;
+const JUMP_FORCE = -3.2;
+const JUMP_BOOST = -1;
+const NORMAL_SPEED = 3;
+const DIVE_SPEED = 5;
 const GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
@@ -462,8 +462,26 @@ function drawGround() {
   ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, GROUND_HEIGHT);
 }
 
-function tick() {
+// Fixed timestep variables
+let lastTime = 0;
+let accumulator = 0;
+const FIXED_TIMESTEP = 1000 / 60; // 60fps in milliseconds
+
+function tick(currentTime = 0) {
   requestAnimationFrame(tick);
+  
+  // Calculate delta time and accumulate
+  const deltaTime = currentTime - lastTime;
+  lastTime = currentTime;
+  accumulator += deltaTime;
+  
+  // Skip frame if not enough time has passed
+  if (accumulator < FIXED_TIMESTEP) {
+    return;
+  }
+  
+  // Process one fixed update step
+  accumulator -= FIXED_TIMESTEP;
   
   ctx.save();
   
