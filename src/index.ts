@@ -73,12 +73,12 @@ interface CatSprite {
 }
 
 const GROUND_HEIGHT = 50;
-const GRAVITY = 0.3;
-const DIVE_GRAVITY_MULTIPLIER = 1.25;
-const JUMP_FORCE = -3;
-const JUMP_BOOST = -.7;
-const NORMAL_SPEED = 1;
-const DIVE_SPEED = 4.0;
+const GRAVITY = 0.1;
+const DIVE_GRAVITY_MULTIPLIER = 1.0;
+const JUMP_FORCE = -2.0;
+const JUMP_BOOST = -.34;
+const NORMAL_SPEED = .5;
+const DIVE_SPEED = 1.5;
 const GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 16;
 const PLAYER_HEIGHT = 16;
