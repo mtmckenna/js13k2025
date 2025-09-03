@@ -285,15 +285,12 @@ function drawPlayer() {
   const drawX = Math.floor(player.x + player.width/2 - camera.x);
   const drawY = Math.floor(player.y + player.height/2 - camera.y);
   ctx.translate(drawX, drawY);
-  
-  if (Math.abs(player.angle) > 0.001) {
-    ctx.rotate(player.angle);
-  }
+  ctx.rotate(player.angle); // Always rotate, even if angle is 0
   
   ctx.drawImage(
     catImage,
     sourceX, 0, frameWidth, frameHeight,
-    -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameHeight * CAT_SCALE
+    -(frameWidth * CAT_SCALE)/2, -(frameHeight * CAT_SCALE)/2, frameWidth * CAT_SCALE, frameWidth * CAT_SCALE
   );
   
   ctx.restore();
@@ -410,7 +407,7 @@ function tick() {
     if (player.spinVelocity < 0.05) {
       player.isSpinning = false;
       player.spinVelocity = 0;
-      player.angle = player.isDiving ? Math.PI / 4 : 0;
+      // Don't set angle instantly - let the else block handle interpolation
     }
   } else {
     if (player.isDiving) {
@@ -419,7 +416,13 @@ function tick() {
       player.targetAngle = 0;
     }
     
-    const angleDiff = player.targetAngle - player.angle;
+    // Find the shortest rotation direction
+    let angleDiff = player.targetAngle - player.angle;
+    
+    // Normalize angle difference to [-π, π]
+    while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+    
     player.angle += angleDiff * 0.1; // Much slower rotation interpolation
   }
 
