@@ -14,6 +14,17 @@
         min-height: fill-available;
         margin: 0;
         padding: 0;
+        /* Prevent text selection and iOS bounce */
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+        overflow: hidden;
+        position: fixed;
+        touch-action: none;
       }
 
       body {
@@ -27,7 +38,11 @@
         height: 100vh;
         object-fit: contain;
         image-rendering: pixelated;
-
+        /* Additional mobile optimizations */
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+        touch-action: none;
       }
     </style>
   </head>

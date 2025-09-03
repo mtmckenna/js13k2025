@@ -646,8 +646,8 @@ function tick() {
 
 requestAnimationFrame(tick);
 
-window.addEventListener("keydown", (e: KeyboardEvent) => {
-  if (e.key === " " && !jumpPressed) {
+function handleJumpStart() {
+  if (!jumpPressed) {
     jumpPressed = true;
     if (player.isGrounded) {
       player.velocityY = JUMP_FORCE;
@@ -662,14 +662,67 @@ window.addEventListener("keydown", (e: KeyboardEvent) => {
       }
     }
   }
+}
+
+function handleJumpEnd() {
+  jumpPressed = false;
+  jumpHoldTime = 0;
+  if (!player.isGrounded && player.isDiving) {
+    player.isDiving = false;
+  }
+}
+
+// Keyboard controls
+window.addEventListener("keydown", (e: KeyboardEvent) => {
+  if (e.key === " ") {
+    e.preventDefault();
+    handleJumpStart();
+  }
 });
 
 window.addEventListener("keyup", (e: KeyboardEvent) => {
   if (e.key === " ") {
-    jumpPressed = false;
-    jumpHoldTime = 0;
-    if (!player.isGrounded && player.isDiving) {
-      player.isDiving = false;
-    }
+    e.preventDefault();
+    handleJumpEnd();
   }
+});
+
+// Mouse controls
+window.addEventListener("mousedown", (e: MouseEvent) => {
+  e.preventDefault();
+  handleJumpStart();
+});
+
+window.addEventListener("mouseup", (e: MouseEvent) => {
+  e.preventDefault();
+  handleJumpEnd();
+});
+
+// Touch controls
+window.addEventListener("touchstart", (e: TouchEvent) => {
+  e.preventDefault();
+  handleJumpStart();
+}, { passive: false });
+
+window.addEventListener("touchend", (e: TouchEvent) => {
+  e.preventDefault();
+  handleJumpEnd();
+}, { passive: false });
+
+window.addEventListener("touchcancel", (e: TouchEvent) => {
+  e.preventDefault();
+  handleJumpEnd();
+}, { passive: false });
+
+// Prevent context menu and other gestures
+window.addEventListener("contextmenu", (e: Event) => {
+  e.preventDefault();
+});
+
+window.addEventListener("selectstart", (e: Event) => {
+  e.preventDefault();
+});
+
+window.addEventListener("dragstart", (e: Event) => {
+  e.preventDefault();
 });
