@@ -64,6 +64,10 @@ interface Particle {
   velocityX: number;
   velocityY: number;
   life: number;
+  color: string;
+  size: number;
+  angle: number;
+  rotationSpeed: number;
 }
 
 interface CatSprite {
@@ -315,14 +319,18 @@ function drawBlock(block: Block) {
   ctx.stroke();
 }
 
-function createExplosion(x: number, y: number) {
-  for (let i = 0; i < 8; i++) {
+function createExplosion(x: number, y: number, color: string) {
+  for (let i = 0; i < 20; i++) {
     particles.push({
       x: x,
       y: y,
-      velocityX: (Math.random() - 0.5) * 8,
-      velocityY: (Math.random() - 0.5) * 8,
-      life: 30
+      velocityX: (Math.random() - 0.5) * 12,
+      velocityY: (Math.random() - 0.5) * 12,
+      life: 40 + Math.random() * 20,
+      color: color,
+      size: Math.random() * 10 + 6, // 6-16px particles
+      angle: Math.random() * Math.PI * 2,
+      rotationSpeed: (Math.random() - 0.5) * 0.3
     });
   }
 }
@@ -330,8 +338,13 @@ function createExplosion(x: number, y: number) {
 function drawParticle(particle: Particle) {
   const drawX = Math.floor(particle.x - camera.x);
   const drawY = Math.floor(particle.y - camera.y);
-  ctx.fillStyle = '#808080';
-  ctx.fillRect(drawX, drawY, 3, 3);
+  
+  ctx.save();
+  ctx.translate(drawX + particle.size/2, drawY + particle.size/2);
+  ctx.rotate(particle.angle);
+  ctx.fillStyle = particle.color;
+  ctx.fillRect(-particle.size/2, -particle.size/2, particle.size, particle.size);
+  ctx.restore();
 }
 
 function updatePlayerAnimation() {
@@ -487,7 +500,7 @@ function tick() {
       blocks.splice(i, 1);
     } else {
       if (checkCollision(player, block) && player.velocityY > 0) {
-        createExplosion(block.x + block.width/2, block.y + block.height/2);
+        createExplosion(block.x + block.width/2, block.y + block.height/2, block.color);
         
         const bounceAngle = player.angle;
         const bounceForce = 4;
@@ -523,6 +536,7 @@ function tick() {
     particle.x += particle.velocityX;
     particle.y += particle.velocityY;
     particle.velocityY += 0.2;
+    particle.angle += particle.rotationSpeed;
     particle.life--;
     
     if (particle.life <= 0) {
