@@ -88,7 +88,7 @@ const PLAYER_HEIGHT = 32;
 const CAMERA_OFFSET_SPEED = 0.015;
 const CAMERA_ROTATION_SPEED = 0.01;
 const CAMERA_TILT_MULTIPLIER = 0.02;
-const CAMERA_ZOOM_SPEED = 0.02;
+const CAMERA_ZOOM_SPEED = 0.08;
 
 const player: Player = {
   x: 50,
@@ -119,6 +119,7 @@ const camera: Camera = {
 let cameraOffsetX = 0; // Smooth camera offset for diving
 let cameraAngle = 0; // Smooth camera rotation
 let cameraZoom = 1.0; // Camera zoom for speed effect
+let cameraOffsetY = 0; // Vertical offset for zoom bias
 
 const clouds: Cloud[] = [];
 const blocks: Block[] = [];
@@ -143,7 +144,7 @@ function generateCloud() {
   }
   
   clouds.push({
-    x: camera.x + width + Math.random() * 400,
+    x: camera.x + width * 1.5 + Math.random() * 400, // Spawn further ahead
     y: Math.random() * 300 + 50, // Spread vertically more
     radius: baseRadius,
     opacity: Math.random() * 0.4 + 0.3,
@@ -160,7 +161,7 @@ function generateBlock() {
   const heightFromGround = Math.random() * 200 + 100; // Much more variety (100-300px from ground)
   
   blocks.push({
-    x: camera.x + width + Math.random() * 1500,
+    x: camera.x + width * 1.5 + Math.random() * 1500, // Spawn further ahead
     width: balloonSize,
     height: balloonBodyHeight + stringLength, // Balloon body + fixed string
     y: GROUND_Y - heightFromGround,
@@ -403,8 +404,8 @@ function checkCollision(rect1: {x: number, y: number, width: number, height: num
 
 function drawGround() {
   ctx.fillStyle = '#27ae60';
-  // Extend ground to cover rotated corners
-  ctx.fillRect(-width * 0.5, GROUND_Y - camera.y, width * 2, GROUND_HEIGHT);
+  // Extend ground to cover zoom out and rotation
+  ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, GROUND_HEIGHT);
 }
 
 function tick() {
@@ -420,18 +421,18 @@ function tick() {
   }
   ctx.translate(-width / 2, -height / 2);
   
-  // Make background larger to cover rotated corners
+  // Make background much larger to cover zoom out and rotation
   ctx.fillStyle = '#87CEEB';
-  ctx.fillRect(-width * 0.5, -height * 0.5, width * 2, height * 2);
+  ctx.fillRect(-width, -height, width * 3, height * 3);
   
   // Fill bottom area with grass color to match ground
   ctx.fillStyle = '#27ae60';
-  ctx.fillRect(-width * 0.5, GROUND_Y - camera.y, width * 2, height * 2);
+  ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, height * 3);
   
   for (let i = clouds.length - 1; i >= 0; i--) {
     const cloud = clouds[i];
     cloud.x += cloud.velocityX;
-    if (cloud.x < camera.x - 100) {
+    if (cloud.x < camera.x - width * 0.5) { // Despawn further offscreen
       clouds.splice(i, 1);
     } else {
       drawCloud(cloud);
@@ -441,7 +442,7 @@ function tick() {
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i];
     block.x += block.velocityX;
-    if (block.x < camera.x - 100) {
+    if (block.x < camera.x - width * 0.5) { // Despawn further offscreen
       blocks.splice(i, 1);
     } else {
       if (checkCollision(player, block) && player.velocityY > 0) {
@@ -555,12 +556,16 @@ function tick() {
   }
   cameraAngle += (targetCameraAngle - cameraAngle) * CAMERA_ROTATION_SPEED;
   
-  // Zoom in slightly when diving for speed effect
-  const targetZoom = player.isDiving ? 1.1 : 1.0;
+  // Zoom out when diving for wider view
+  const targetZoom = player.isDiving ? 0.85 : 1.0;
   cameraZoom += (targetZoom - cameraZoom) * CAMERA_ZOOM_SPEED;
   
+  // Bias camera up when zooming out to show more sky
+  const targetOffsetY = player.isDiving ? -60 : 0; // Move camera up when diving
+  cameraOffsetY += (targetOffsetY - cameraOffsetY) * CAMERA_ZOOM_SPEED;
+  
   camera.x = player.x - width / 5 + cameraOffsetX;
-  camera.y = GROUND_Y - height + GROUND_HEIGHT;
+  camera.y = GROUND_Y - height + GROUND_HEIGHT + cameraOffsetY;
   
   //debug
   if (bottomOfPlayer(player) >= GROUND_Y) {
