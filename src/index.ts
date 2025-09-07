@@ -181,6 +181,127 @@ let titleAnimationTime = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('birthdayGameHighScore') || '0');
 
+// Audio setup
+const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+// Sound effect functions
+function playBounceSound() {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  // Bouncy ascending tone
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+  
+  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.2);
+}
+
+function playPopSound() {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  // Quick pop noise
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.05);
+  
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.05);
+}
+
+function playJumpSound() {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  // Quick upward sweep
+  oscillator.type = 'triangle';
+  oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.1);
+  
+  gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playDoubleJumpSound() {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  // Double jump sparkle
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.15);
+  
+  gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.15);
+}
+
+function playLandSound() {
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+  
+  // Thud sound
+  oscillator.type = 'sawtooth';
+  oscillator.frequency.setValueAtTime(80, audioContext.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(40, audioContext.currentTime + 0.1);
+  
+  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+  
+  oscillator.start(audioContext.currentTime);
+  oscillator.stop(audioContext.currentTime + 0.1);
+}
+
+function playGameOverSound() {
+  // Descending notes
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(400 - i * 100, audioContext.currentTime);
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    }, i * 150);
+  }
+}
+
 
 function generateCloud() {
   const baseRadius = Math.random() * 30 + 20;
@@ -780,6 +901,8 @@ function tick(currentTime = 0) {
         
         // Only bounce if hitting from above (falling down)
         if (player.velocityY > 0) {
+          playBounceSound(); // Play bounce sound
+          
           // Base bounce is stronger now
           player.velocityY = -8; // Strong upward bounce
           player.velocityX = NORMAL_SPEED; // Maintain forward momentum
@@ -792,6 +915,8 @@ function tick(currentTime = 0) {
           
           player.isSpinning = true;
           player.spinVelocity = 0.3;
+        } else {
+          playPopSound(); // Play pop sound when hitting from below
         }
         // If hitting from below (going up), just pop the balloon without affecting movement
         
@@ -912,6 +1037,7 @@ function tick(currentTime = 0) {
     // Check if we were previously in the air (to only trigger once per landing)
     if (!player.isGrounded && gameStarted) {
       loseCupcake(); // Lose a cupcake when landing (only during gameplay)
+      playLandSound(); // Play landing sound
     }
     
     player.y = GROUND_Y - player.height;
@@ -1041,6 +1167,7 @@ function handleJumpStart() {
       player.isGrounded = false;
       player.hasDoubleJumped = false;
       lastJumpTime = currentTime;
+      playJumpSound();
     } else {
       // Check for double jump (quick succession taps while in air)
       const timeSinceLastJump = currentTime - lastJumpTime;
@@ -1051,6 +1178,7 @@ function handleJumpStart() {
         player.isSpinning = true;
         player.spinVelocity = 0.3;
         lastJumpTime = currentTime;
+        playDoubleJumpSound();
       } else {
         // Regular dive toggle logic
         if (player.isDiving) {
