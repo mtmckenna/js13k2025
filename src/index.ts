@@ -308,12 +308,12 @@ function generateCloud() {
   const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
   const circles = [];
   
-  // Create multiple overlapping circles
+  // Create multiple overlapping circles with more spacing
   for (let i = 0; i < numCircles; i++) {
     circles.push({
-      x: (Math.random() - 0.5) * baseRadius * 0.8,
-      y: (Math.random() - 0.5) * baseRadius * 0.6,
-      radius: baseRadius * (0.6 + Math.random() * 0.4)
+      x: (Math.random() - 0.5) * baseRadius * 1.4,
+      y: (Math.random() - 0.5) * baseRadius * 1.0,
+      radius: baseRadius * (0.5 + Math.random() * 0.4)
     });
   }
   
@@ -349,12 +349,12 @@ for (let i = 0; i < 10; i++) {
   const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
   const circles = [];
   
-  // Create multiple overlapping circles
+  // Create multiple overlapping circles with more spacing
   for (let j = 0; j < numCircles; j++) {
     circles.push({
-      x: (Math.random() - 0.5) * baseRadius * 0.8,
-      y: (Math.random() - 0.5) * baseRadius * 0.6,
-      radius: baseRadius * (0.6 + Math.random() * 0.4)
+      x: (Math.random() - 0.5) * baseRadius * 1.4,
+      y: (Math.random() - 0.5) * baseRadius * 1.0,
+      radius: baseRadius * (0.5 + Math.random() * 0.4)
     });
   }
   
@@ -408,24 +408,17 @@ function drawShape(points: Point[], color: string) {
 function drawCloud(cloud: Cloud) {
   ctx.save();
   
-  // First circle at full opacity
+  // Set opacity and fill style
   ctx.globalAlpha = cloud.opacity;
+  ctx.globalAlpha = 1;
   ctx.fillStyle = '#ffffff';
-  let firstCircle = cloud.circles[0];
-  let drawX = Math.floor(cloud.x + firstCircle.x - camera.x);
-  let drawY = Math.floor(cloud.y + firstCircle.y - camera.y);
-  ctx.beginPath();
-  ctx.arc(drawX, drawY, firstCircle.radius, 0, Math.PI * 2);
-  ctx.fill();
   
-  // Remaining circles with lighter blend mode
-  // ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = cloud.opacity * 0.3; // Much lower opacity for overlaps
+  // Draw all circles with screen blend mode to prevent opacity stacking
+  ctx.globalCompositeOperation = 'screen';
   
-  for (let i = 1; i < cloud.circles.length; i++) {
-    const circle = cloud.circles[i];
-    drawX = Math.floor(cloud.x + circle.x - camera.x);
-    drawY = Math.floor(cloud.y + circle.y - camera.y);
+  for (const circle of cloud.circles) {
+    const drawX = Math.floor(cloud.x + circle.x - camera.x);
+    const drawY = Math.floor(cloud.y + circle.y - camera.y);
     ctx.beginPath();
     ctx.arc(drawX, drawY, circle.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -1138,9 +1131,9 @@ function handleJumpStart() {
       
       for (let j = 0; j < numCircles; j++) {
         circles.push({
-          x: (Math.random() - 0.5) * baseRadius * 0.8,
-          y: (Math.random() - 0.5) * baseRadius * 0.6,
-          radius: baseRadius * (0.6 + Math.random() * 0.4)
+          x: (Math.random() - 0.5) * baseRadius * 1.4,
+          y: (Math.random() - 0.5) * baseRadius * 1.0,
+          radius: baseRadius * (0.5 + Math.random() * 0.4)
         });
       }
       
