@@ -691,7 +691,7 @@ function drawTitleScreen() {
   ctx.strokeText(instruction2, width / 2, height / 2 + 80);
   ctx.fillText(instruction2, width / 2, height / 2 + 80);
   
-  const instruction3 = "Press jump twice to double jump (one time per jump)";
+    const instruction3 = "Press jump twice to double jump (one time per jump)";
   ctx.strokeText(instruction3, width / 2, height / 2 + 120);
   ctx.fillText(instruction3, width / 2, height / 2 + 120);
   
@@ -780,14 +780,13 @@ function tick(currentTime = 0) {
         
         // Only bounce if hitting from above (falling down)
         if (player.velocityY > 0) {
-          const bounceAngle = player.angle;
-          const bounceForce = 4;
-          player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
-          player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
+          // Base bounce is stronger now
+          player.velocityY = -8; // Strong upward bounce
+          player.velocityX = NORMAL_SPEED; // Maintain forward momentum
           
-          // If space is held during bounce, apply jump boost
+          // If space is held during bounce, apply extra jump boost
           if (jumpPressed) {
-            //player.velocityY += JUMP_BOOST * 2; // Extra boost for bounce
+            player.velocityY = -10; // Even stronger bounce when holding jump
             jumpHoldTime = 0; // Reset jump hold time for consistent bounces
           }
           
