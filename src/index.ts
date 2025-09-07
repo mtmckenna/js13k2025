@@ -972,6 +972,62 @@ function handleJumpStart() {
     player.isDiving = false;
     player.angle = 0;
     player.hasDoubleJumped = false;
+    
+    // Reset camera
+    camera.x = 0;
+    camera.y = GROUND_Y - height + GROUND_HEIGHT;
+    cameraOffsetX = 0;
+    cameraOffsetY = 0;
+    cameraAngle = 0;
+    cameraZoom = 1.0;
+    
+    // Clear existing balloons and clouds
+    blocks.length = 0;
+    clouds.length = 0;
+    particles.length = 0;
+    
+    // Spawn new balloons close to player
+    for (let i = 0; i < 8; i++) {
+      const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+      const balloonSize = 60;
+      const stringLength = 40;
+      const balloonBodyHeight = balloonSize * 1.2;
+      const heightFromGround = Math.random() * 200 + 100;
+      
+      blocks.push({
+        x: player.x + width/2 + i * 200 + Math.random() * 150,
+        width: balloonSize,
+        height: balloonBodyHeight + stringLength,
+        y: GROUND_Y - heightFromGround,
+        velocityX: -1.5,
+        color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
+      });
+    }
+    
+    // Spawn some initial clouds
+    for (let i = 0; i < 10; i++) {
+      const baseRadius = Math.random() * 30 + 20;
+      const numCircles = Math.floor(Math.random() * 4) + 2;
+      const circles = [];
+      
+      for (let j = 0; j < numCircles; j++) {
+        circles.push({
+          x: (Math.random() - 0.5) * baseRadius * 0.8,
+          y: (Math.random() - 0.5) * baseRadius * 0.6,
+          radius: baseRadius * (0.6 + Math.random() * 0.4)
+        });
+      }
+      
+      clouds.push({
+        x: Math.random() * width * 2,
+        y: Math.random() * 300 + 50,
+        radius: baseRadius,
+        opacity: Math.random() * 0.4 + 0.3,
+        velocityX: -0.2 - Math.random() * 0.3,
+        circles: circles
+      });
+    }
+    
     return;
   }
   
