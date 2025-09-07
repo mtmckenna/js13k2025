@@ -737,22 +737,26 @@ function tick(currentTime = 0) {
     if (block.x < camera.x - width * 0.5) { // Despawn further offscreen
       blocks.splice(i, 1);
     } else {
-      if (checkCollision(player, block) && player.velocityY > 0) {
+      if (checkCollision(player, block)) {
         createExplosion(block.x + block.width/2, block.y + block.height/2, block.color);
         
-        const bounceAngle = player.angle;
-        const bounceForce = 4;
-        player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
-        player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
-        
-        // If space is held during bounce, apply jump boost
-        if (jumpPressed) {
-          //player.velocityY += JUMP_BOOST * 2; // Extra boost for bounce
-          jumpHoldTime = 0; // Reset jump hold time for consistent bounces
+        // Only bounce if hitting from above (falling down)
+        if (player.velocityY > 0) {
+          const bounceAngle = player.angle;
+          const bounceForce = 4;
+          player.velocityX = Math.abs(Math.cos(bounceAngle - Math.PI) * bounceForce);
+          player.velocityY = Math.sin(bounceAngle - Math.PI) * bounceForce;
+          
+          // If space is held during bounce, apply jump boost
+          if (jumpPressed) {
+            //player.velocityY += JUMP_BOOST * 2; // Extra boost for bounce
+            jumpHoldTime = 0; // Reset jump hold time for consistent bounces
+          }
+          
+          player.isSpinning = true;
+          player.spinVelocity = 0.3;
         }
-        
-        player.isSpinning = true;
-        player.spinVelocity = 0.3;
+        // If hitting from below (going up), just pop the balloon without affecting movement
         
         blocks.splice(i, 1);
         continue;
