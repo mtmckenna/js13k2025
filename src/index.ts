@@ -165,6 +165,10 @@ const cupcakeAnimations: Array<{
   life: number;
 }> = [];
 
+// Game state
+let gameStarted = false;
+let titleAnimationTime = 0;
+
 
 function generateCloud() {
   const baseRadius = Math.random() * 30 + 20;
@@ -545,6 +549,62 @@ function loseCupcake() {
   }
 }
 
+function drawTitleScreen() {
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(0, 0, width, height);
+  
+  // Animated title letters
+  const title = "Happy Birthday, Jerry!";
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  
+  // Draw each letter with bounce animation
+  let xOffset = width / 2 - (title.length * 24) / 2;
+  for (let i = 0; i < title.length; i++) {
+    const letter = title[i];
+    const bounce = Math.sin(titleAnimationTime * 0.003 + i * 0.3) * 10;
+    
+    // Rainbow colors for fun birthday effect
+    const hue = (i * 20 + titleAnimationTime * 0.1) % 360;
+    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+    
+    ctx.save();
+    ctx.translate(xOffset + i * 24, height / 3 + bounce);
+    
+    // Draw text with black outline
+    ctx.strokeText(letter, 0, 0);
+    ctx.fillText(letter, 0, 0);
+    
+    ctx.restore();
+  }
+  
+  // Instructions
+  ctx.font = '24px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.textAlign = 'center';
+  
+  const instruction1 = "Press space/tap/click to jump";
+  ctx.strokeText(instruction1, width / 2, height / 2 + 40);
+  ctx.fillText(instruction1, width / 2, height / 2 + 40);
+  
+  const instruction2 = "Do it twice to double jump!";
+  ctx.strokeText(instruction2, width / 2, height / 2 + 80);
+  ctx.fillText(instruction2, width / 2, height / 2 + 80);
+  
+  // Start prompt
+  const startText = "- Press any key to start -";
+  const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
+  ctx.font = `${20 * pulseScale}px monospace`;
+  ctx.fillStyle = '#ffff00';
+  ctx.strokeText(startText, width / 2, height - 100);
+  ctx.fillText(startText, width / 2, height - 100);
+}
+
 // Fixed timestep variables
 let lastTime = 0;
 let accumulator = 0;
@@ -565,6 +625,28 @@ function tick(currentTime = 0) {
   
   // Process one fixed update step
   accumulator -= FIXED_TIMESTEP;
+  
+  // Update title animation time
+  titleAnimationTime++;
+  
+  // Auto-play on title screen
+  if (!gameStarted) {
+    // Simple auto-jump logic
+    if (player.isGrounded && Math.random() < 0.02) {
+      player.velocityY = JUMP_FORCE;
+      player.isGrounded = false;
+    }
+    // Auto-dive sometimes
+    if (!player.isGrounded && !player.isDiving && Math.random() < 0.01) {
+      player.isDiving = true;
+      player.velocityY = Math.max(player.velocityY, 2);
+      player.velocityX = DIVE_SPEED;
+    }
+    // Stop diving sometimes
+    if (player.isDiving && Math.random() < 0.02) {
+      player.isDiving = false;
+    }
+  }
   
   ctx.save();
   
@@ -729,8 +811,8 @@ function tick(currentTime = 0) {
   //debug
   if (bottomOfPlayer(player) >= GROUND_Y) {
     // Check if we were previously in the air (to only trigger once per landing)
-    if (!player.isGrounded) {
-      loseCupcake(); // Lose a cupcake when landing
+    if (!player.isGrounded && gameStarted) {
+      loseCupcake(); // Lose a cupcake when landing (only during gameplay)
     }
     
     player.y = GROUND_Y - player.height;
@@ -751,12 +833,26 @@ function tick(currentTime = 0) {
   ctx.restore(); // Restore camera rotation
   
   // Draw UI elements (after camera restore so they're not affected by camera)
-  drawCupcakeUI();
+  if (gameStarted) {
+    drawCupcakeUI();
+  }
+  
+  // Draw title screen overlay
+  if (!gameStarted) {
+    drawTitleScreen();
+  }
 }
 
 requestAnimationFrame(tick);
 
 function handleJumpStart() {
+  // Start the game on first input
+  if (!gameStarted) {
+    gameStarted = true;
+    cupcakeCount = 3; // Reset cupcakes
+    return;
+  }
+  
   if (!jumpPressed) {
     jumpPressed = true;
     const currentTime = performance.now();
