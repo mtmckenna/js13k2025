@@ -1,5 +1,6 @@
 
 import catImageUrl from '../assets/cat.png';
+import cupcakeImageUrl from '../assets/cupcake.png';
 
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
@@ -147,6 +148,23 @@ const particles: Particle[] = [];
 const catImage = new Image();
 catImage.src = catImageUrl;
 
+const cupcakeImage = new Image();
+cupcakeImage.src = cupcakeImageUrl;
+
+// Cupcake system
+let cupcakeCount = 3;
+const cupcakeAnimations: Array<{
+  x: number;
+  y: number;
+  velocityX: number;
+  velocityY: number;
+  angle: number;
+  rotationSpeed: number;
+  scale: number;
+  opacity: number;
+  life: number;
+}> = [];
+
 
 function generateCloud() {
   const baseRadius = Math.random() * 30 + 20;
@@ -248,6 +266,7 @@ function drawShape(points: Point[], color: string) {
   ctx.closePath();
   ctx.fill();
 }
+
 
 function drawCloud(cloud: Cloud) {
   ctx.save();
@@ -469,6 +488,63 @@ function drawGround() {
   ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, GROUND_HEIGHT);
 }
 
+function drawCupcakeUI() {
+  // Draw static cupcakes in top left
+  for (let i = 0; i < cupcakeCount; i++) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(30 + i * 40, 30);
+    ctx.drawImage(cupcakeImage, -16, -16, 32, 32);
+    ctx.restore();
+  }
+  
+  // Draw animating cupcakes
+  for (let i = cupcakeAnimations.length - 1; i >= 0; i--) {
+    const anim = cupcakeAnimations[i];
+    
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = anim.opacity;
+    ctx.translate(anim.x, anim.y);
+    ctx.rotate(anim.angle);
+    ctx.scale(anim.scale, anim.scale);
+    ctx.drawImage(cupcakeImage, -16, -16, 32, 32);
+    ctx.restore();
+    
+    // Update animation
+    anim.x += anim.velocityX;
+    anim.y += anim.velocityY;
+    anim.velocityY += 0.3; // gravity
+    anim.angle += anim.rotationSpeed;
+    anim.opacity *= 0.98;
+    anim.life--;
+    
+    if (anim.life <= 0) {
+      cupcakeAnimations.splice(i, 1);
+    }
+  }
+}
+
+function loseCupcake() {
+  if (cupcakeCount > 0) {
+    // Create animation for the cupcake that's disappearing
+    const cupcakeIndex = cupcakeCount - 1;
+    cupcakeAnimations.push({
+      x: 30 + cupcakeIndex * 40,
+      y: 30,
+      velocityX: Math.random() * 4 - 2, // random horizontal velocity
+      velocityY: -3 - Math.random() * 2, // pop up
+      angle: 0,
+      rotationSpeed: (Math.random() - 0.5) * 0.3,
+      scale: 1,
+      opacity: 1,
+      life: 60
+    });
+    
+    cupcakeCount--;
+  }
+}
+
 // Fixed timestep variables
 let lastTime = 0;
 let accumulator = 0;
@@ -652,6 +728,11 @@ function tick(currentTime = 0) {
   
   //debug
   if (bottomOfPlayer(player) >= GROUND_Y) {
+    // Check if we were previously in the air (to only trigger once per landing)
+    if (!player.isGrounded) {
+      loseCupcake(); // Lose a cupcake when landing
+    }
+    
     player.y = GROUND_Y - player.height;
     player.velocityY = 0;
     player.isGrounded = true;
@@ -668,6 +749,9 @@ function tick(currentTime = 0) {
   drawPlayer();
   
   ctx.restore(); // Restore camera rotation
+  
+  // Draw UI elements (after camera restore so they're not affected by camera)
+  drawCupcakeUI();
 }
 
 requestAnimationFrame(tick);
