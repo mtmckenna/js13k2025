@@ -550,10 +550,6 @@ function loseCupcake() {
 }
 
 function drawTitleScreen() {
-  // Dark overlay
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(0, 0, width, height);
-  
   // Animated title letters
   const title = "Happy Birthday, Jerry!";
   ctx.font = 'bold 48px monospace';
@@ -588,13 +584,23 @@ function drawTitleScreen() {
   ctx.lineWidth = 3;
   ctx.textAlign = 'center';
   
-  const instruction1 = "Press space/tap/click to jump";
+  const instruction1 = "Press space, tap, or click to jump";
   ctx.strokeText(instruction1, width / 2, height / 2 + 40);
   ctx.fillText(instruction1, width / 2, height / 2 + 40);
   
-  const instruction2 = "Do it twice to double jump!";
+  const instruction2 = "Hold jump to dive";
   ctx.strokeText(instruction2, width / 2, height / 2 + 80);
   ctx.fillText(instruction2, width / 2, height / 2 + 80);
+  
+  const instruction3 = "Press jump twice to double jump (one time per jump)";
+  ctx.strokeText(instruction3, width / 2, height / 2 + 120);
+  ctx.fillText(instruction3, width / 2, height / 2 + 120);
+  
+  // Warning instruction in different color
+  ctx.fillStyle = '#ff6b6b'; // Red/pink color for warning
+  const warning = "If you hit the ground, you lose a cupcake!";
+  ctx.strokeText(warning, width / 2, height / 2 + 160);
+  ctx.fillText(warning, width / 2, height / 2 + 160);
   
   // Start prompt
   const startText = "- Press any key to start -";
@@ -628,25 +634,6 @@ function tick(currentTime = 0) {
   
   // Update title animation time
   titleAnimationTime++;
-  
-  // Auto-play on title screen
-  if (!gameStarted) {
-    // Simple auto-jump logic
-    if (player.isGrounded && Math.random() < 0.02) {
-      player.velocityY = JUMP_FORCE;
-      player.isGrounded = false;
-    }
-    // Auto-dive sometimes
-    if (!player.isGrounded && !player.isDiving && Math.random() < 0.01) {
-      player.isDiving = true;
-      player.velocityY = Math.max(player.velocityY, 2);
-      player.velocityX = DIVE_SPEED;
-    }
-    // Stop diving sometimes
-    if (player.isDiving && Math.random() < 0.02) {
-      player.isDiving = false;
-    }
-  }
   
   ctx.save();
   
