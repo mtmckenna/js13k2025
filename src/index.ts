@@ -594,7 +594,7 @@ function drawGameOverScreen() {
   let xOffset = width / 2 - (title.length * 32) / 2;
   for (let i = 0; i < title.length; i++) {
     const letter = title[i];
-    const bounce = Math.sin(titleAnimationTime * 0.003 + i * 0.3) * 15;
+    const bounce = Math.sin(titleAnimationTime * 0.006 + i * 0.3) * 25;
     
     // Rainbow colors for fun birthday effect
     const hue = (i * 40 + titleAnimationTime * 0.1) % 360;
@@ -636,6 +636,10 @@ function drawGameOverScreen() {
 }
 
 function drawTitleScreen() {
+  // Dark overlay
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(0, 0, width, height);
+  
   // Animated title letters
   const title = "Happy Birthday, Jerry!";
   ctx.font = 'bold 48px monospace';
@@ -647,7 +651,7 @@ function drawTitleScreen() {
   let xOffset = width / 2 - (title.length * 24) / 2;
   for (let i = 0; i < title.length; i++) {
     const letter = title[i];
-    const bounce = Math.sin(titleAnimationTime * 0.003 + i * 0.3) * 10;
+    const bounce = Math.sin(titleAnimationTime * 0.006 + i * 0.3) * 20;
     
     // Rainbow colors for fun birthday effect
     const hue = (i * 20 + titleAnimationTime * 0.1) % 360;
