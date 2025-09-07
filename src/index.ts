@@ -5,8 +5,17 @@ import cupcakeImageUrl from '../assets/cupcake.png';
 const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
-const width = 1024;
-const height = 768;
+
+// Dynamic sizing based on viewport - always fill screen exactly
+function getCanvasSize() {
+  // Just use the actual viewport size
+  return { 
+    width: window.innerWidth, 
+    height: window.innerHeight 
+  };
+}
+
+let { width, height } = getCanvasSize();
 const CAT_SCALE = 6;
 
 canvas.id = "game";
@@ -87,7 +96,7 @@ const DOUBLE_JUMP_FORCE = -2.8;
 const JUMP_BOOST = -1;
 const NORMAL_SPEED = 3;
 const DIVE_SPEED = 5;
-const GROUND_Y = height - GROUND_HEIGHT;
+let GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
 
@@ -737,7 +746,7 @@ function tick(currentTime = 0) {
   
   // Make background much larger to cover zoom out and rotation
   ctx.fillStyle = '#87CEEB';
-  ctx.fillRect(-width, -height, width * 3, height * 3);
+  ctx.fillRect(-width, -height * 2, width * 3, height * 4);
   
   // Fill bottom area with grass color to match ground
   ctx.fillStyle = '#27ae60';
@@ -1063,4 +1072,30 @@ window.addEventListener("selectstart", (e: Event) => {
 
 window.addEventListener("dragstart", (e: Event) => {
   e.preventDefault();
+});
+
+// Handle window resize
+window.addEventListener("resize", () => {
+  const oldGroundY = GROUND_Y;
+  const newSize = getCanvasSize();
+  width = newSize.width;
+  height = newSize.height;
+  GROUND_Y = height - GROUND_HEIGHT;
+  
+  // Adjust balloon positions to maintain distance from ground
+  const groundShift = GROUND_Y - oldGroundY;
+  for (const block of blocks) {
+    block.y += groundShift;
+  }
+  
+  // Adjust player position if on ground
+  if (player.isGrounded) {
+    player.y = GROUND_Y - player.height;
+  } else {
+    player.y += groundShift;
+  }
+  
+  canvas.width = width;
+  canvas.height = height;
+  ctx.imageSmoothingEnabled = false;
 });
