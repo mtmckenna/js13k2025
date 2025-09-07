@@ -167,7 +167,10 @@ const cupcakeAnimations: Array<{
 
 // Game state
 let gameStarted = false;
+let gameOver = false;
 let titleAnimationTime = 0;
+let score = 0;
+let highScore = 0;
 
 
 function generateCloud() {
@@ -546,7 +549,72 @@ function loseCupcake() {
     });
     
     cupcakeCount--;
+    
+    // Check for game over
+    if (cupcakeCount === 0) {
+      gameOver = true;
+      if (score > highScore) {
+        highScore = score;
+      }
+    }
   }
+}
+
+function drawGameOverScreen() {
+  // Semi-transparent overlay
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(0, 0, width, height);
+  
+  // "Great Job!" with birthday animation
+  const title = "Great Job!";
+  ctx.font = 'bold 64px monospace';
+  ctx.textAlign = 'center';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 4;
+  
+  // Draw each letter with bounce animation
+  let xOffset = width / 2 - (title.length * 32) / 2;
+  for (let i = 0; i < title.length; i++) {
+    const letter = title[i];
+    const bounce = Math.sin(titleAnimationTime * 0.003 + i * 0.3) * 15;
+    
+    // Rainbow colors for fun birthday effect
+    const hue = (i * 40 + titleAnimationTime * 0.1) % 360;
+    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+    
+    ctx.save();
+    ctx.translate(xOffset + i * 32, height / 3 + bounce);
+    
+    // Draw text with black outline
+    ctx.strokeText(letter, 0, 0);
+    ctx.fillText(letter, 0, 0);
+    
+    ctx.restore();
+  }
+  
+  // Score display area (placeholder for now - will be filled in later)
+  ctx.font = '32px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.textAlign = 'center';
+  
+  // Leave space here for score display
+  const scoreText = `Score: ${score}`;
+  ctx.strokeText(scoreText, width / 2, height / 2 + 20);
+  ctx.fillText(scoreText, width / 2, height / 2 + 20);
+  
+  const highScoreText = `High Score: ${highScore}`;
+  ctx.strokeText(highScoreText, width / 2, height / 2 + 60);
+  ctx.fillText(highScoreText, width / 2, height / 2 + 60);
+  
+  // Play again prompt
+  const playAgainText = "- Press any key to play again -";
+  const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
+  ctx.font = `${24 * pulseScale}px monospace`;
+  ctx.fillStyle = '#ffff00';
+  ctx.strokeText(playAgainText, width / 2, height - 100);
+  ctx.fillText(playAgainText, width / 2, height - 100);
 }
 
 function drawTitleScreen() {
@@ -745,25 +813,28 @@ function tick(currentTime = 0) {
     player.angle += angleDiff * 0.1; // Much slower rotation interpolation
   }
 
-  if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
-    player.velocityY += JUMP_BOOST;
-    jumpHoldTime++;
-  }
+  // Only update player physics if game is active
+  if (!gameOver) {
+    if (jumpPressed && jumpHoldTime < MAX_JUMP_HOLD_TIME && player.velocityY < 0) {
+      player.velocityY += JUMP_BOOST;
+      jumpHoldTime++;
+    }
 
-  if (player.isDiving) {
-    player.velocityY += GRAVITY * DIVE_GRAVITY_MULTIPLIER;
-  } else {
-    player.velocityY += GRAVITY;
-  }
+    if (player.isDiving) {
+      player.velocityY += GRAVITY * DIVE_GRAVITY_MULTIPLIER;
+    } else {
+      player.velocityY += GRAVITY;
+    }
 
-  if (player.isGrounded) {
-    player.velocityX = NORMAL_SPEED;
-  } else if (!player.isDiving) {
-    player.velocityX = NORMAL_SPEED;
+    if (player.isGrounded) {
+      player.velocityX = NORMAL_SPEED;
+    } else if (!player.isDiving) {
+      player.velocityX = NORMAL_SPEED;
+    }
+    
+    player.y += player.velocityY;
+    player.x += player.velocityX;
   }
-  
-  player.y += player.velocityY;
-  player.x += player.velocityX;
   
   // Smooth camera offset for diving - look ahead horizontally
   const targetOffsetX = player.isDiving ? 100 : 0; // Look ahead when diving
@@ -820,13 +891,18 @@ function tick(currentTime = 0) {
   ctx.restore(); // Restore camera rotation
   
   // Draw UI elements (after camera restore so they're not affected by camera)
-  if (gameStarted) {
+  if (gameStarted && !gameOver) {
     drawCupcakeUI();
   }
   
   // Draw title screen overlay
   if (!gameStarted) {
     drawTitleScreen();
+  }
+  
+  // Draw game over screen
+  if (gameOver) {
+    drawGameOverScreen();
   }
 }
 
@@ -840,7 +916,25 @@ function handleJumpStart() {
     return;
   }
   
-  if (!jumpPressed) {
+  // Restart game if game over
+  if (gameOver) {
+    gameOver = false;
+    gameStarted = true;
+    cupcakeCount = 3;
+    score = 0;
+    // Reset player position
+    player.x = 50;
+    player.y = GROUND_Y;
+    player.velocityX = 0;
+    player.velocityY = 0;
+    player.isGrounded = true;
+    player.isDiving = false;
+    player.angle = 0;
+    player.hasDoubleJumped = false;
+    return;
+  }
+  
+  if (!jumpPressed && !gameOver) {
     jumpPressed = true;
     const currentTime = performance.now();
     
