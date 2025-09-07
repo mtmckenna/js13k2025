@@ -170,7 +170,7 @@ let gameStarted = false;
 let gameOver = false;
 let titleAnimationTime = 0;
 let score = 0;
-let highScore = 0;
+let highScore = parseInt(localStorage.getItem('birthdayGameHighScore') || '0');
 
 
 function generateCloud() {
@@ -495,7 +495,7 @@ function drawGround() {
   ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, GROUND_HEIGHT);
 }
 
-function drawCupcakeUI() {
+function drawUI() {
   // Draw static cupcakes in top left
   for (let i = 0; i < cupcakeCount; i++) {
     ctx.save();
@@ -504,6 +504,26 @@ function drawCupcakeUI() {
     ctx.drawImage(cupcakeImage, -16, -16, 32, 32);
     ctx.restore();
   }
+  
+  // Draw score in top right
+  ctx.save();
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  
+  // High score
+  const highScoreText = `High Score: ${highScore}`;
+  ctx.strokeText(highScoreText, width - 20, 30);
+  ctx.fillText(highScoreText, width - 20, 30);
+  
+  // Current score
+  const scoreText = `Current Score: ${score}`;
+  ctx.strokeText(scoreText, width - 20, 60);
+  ctx.fillText(scoreText, width - 20, 60);
+  
+  ctx.restore();
   
   // Draw animating cupcakes
   for (let i = cupcakeAnimations.length - 1; i >= 0; i--) {
@@ -553,9 +573,7 @@ function loseCupcake() {
     // Check for game over
     if (cupcakeCount === 0) {
       gameOver = true;
-      if (score > highScore) {
-        highScore = score;
-      }
+      // High score is already saved in localStorage when balloons are popped
     }
   }
 }
@@ -740,6 +758,13 @@ function tick(currentTime = 0) {
       if (checkCollision(player, block)) {
         createExplosion(block.x + block.width/2, block.y + block.height/2, block.color);
         
+        // Increment score for popping balloon
+        score++;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('birthdayGameHighScore', highScore.toString());
+        }
+        
         // Only bounce if hitting from above (falling down)
         if (player.velocityY > 0) {
           const bounceAngle = player.angle;
@@ -896,7 +921,7 @@ function tick(currentTime = 0) {
   
   // Draw UI elements (after camera restore so they're not affected by camera)
   if (gameStarted && !gameOver) {
-    drawCupcakeUI();
+    drawUI();
   }
   
   // Draw title screen overlay
