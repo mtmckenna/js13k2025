@@ -205,8 +205,49 @@ let titleAnimationTime = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('birthdayGameHighScore') || '0');
 
+// Transition state
+let isTransitioning = false;
+let transitionProgress = 0;
+let textParticles: Array<{
+  x: number;
+  y: number;
+  velocityX: number;
+  velocityY: number;
+  rotation: number;
+  rotationSpeed: number;
+  letter: string;
+  color: string;
+  size: number;
+  life: number;
+}> = [];
+let overlayOpacity = 0.7;
+
 // Audio setup
 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+function createTextExplosion(text: string, startX: number, startY: number, letterSpacing: number) {
+  textParticles = [];
+  for (let i = 0; i < text.length; i++) {
+    const letter = text[i];
+    if (letter === ' ') continue;
+    
+    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+    const x = startX + i * letterSpacing;
+    
+    textParticles.push({
+      x: x,
+      y: startY,
+      velocityX: (Math.random() - 0.5) * 15,
+      velocityY: -Math.random() * 10 - 5,
+      rotation: 0,
+      rotationSpeed: (Math.random() - 0.5) * 0.3,
+      letter: letter,
+      color: colors[i % colors.length],
+      size: 48,
+      life: 60
+    });
+  }
+}
 
 // Sound effect functions
 function playBounceSound() {
@@ -730,9 +771,17 @@ function loseCupcake() {
 }
 
 function drawGameOverScreen() {
-  // Semi-transparent overlay
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  // Semi-transparent overlay with fade out during transition
+  if (isTransitioning) {
+    overlayOpacity = Math.max(0, 0.3 * (1 - transitionProgress));
+  } else {
+    overlayOpacity = 0.3;
+  }
+  ctx.fillStyle = `rgba(0, 0, 0, ${overlayOpacity})`;
   ctx.fillRect(0, 0, width, height);
+  
+  // Don't draw text if transitioning
+  if (isTransitioning) return;
   
   // "Great Job!" with birthday animation
   const title = "Great Job!";
@@ -787,9 +836,17 @@ function drawGameOverScreen() {
 }
 
 function drawTitleScreen() {
-  // Dark overlay
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  // Dark overlay with fade out during transition
+  if (isTransitioning) {
+    overlayOpacity = Math.max(0, 0.4 * (1 - transitionProgress));
+  } else {
+    overlayOpacity = 0.4;
+  }
+  ctx.fillStyle = `rgba(0, 0, 0, ${overlayOpacity})`;
   ctx.fillRect(0, 0, width, height);
+  
+  // Don't draw text if transitioning
+  if (isTransitioning) return;
   
   // Animated title letters
   const title = "Happy Birthday, Jerry!";
@@ -875,6 +932,25 @@ function tick(currentTime = 0) {
   
   // Update title animation time
   titleAnimationTime++;
+  
+  // Update transition
+  if (isTransitioning) {
+    transitionProgress = Math.min(1, transitionProgress + 0.02);
+    
+    // Update text particles
+    for (let i = textParticles.length - 1; i >= 0; i--) {
+      const particle = textParticles[i];
+      particle.x += particle.velocityX;
+      particle.y += particle.velocityY;
+      particle.velocityY += 0.5; // Gravity
+      particle.rotation += particle.rotationSpeed;
+      particle.life--;
+      
+      if (particle.life <= 0) {
+        textParticles.splice(i, 1);
+      }
+    }
+  }
   
   ctx.save();
   
@@ -1094,88 +1170,141 @@ function tick(currentTime = 0) {
   if (gameOver) {
     drawGameOverScreen();
   }
+  
+  // Draw text particles during transition
+  if (isTransitioning) {
+    ctx.save();
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    for (const particle of textParticles) {
+      const opacity = particle.life / 60;
+      ctx.globalAlpha = opacity;
+      ctx.fillStyle = particle.color;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 4;
+      
+      ctx.save();
+      ctx.translate(particle.x, particle.y);
+      ctx.rotate(particle.rotation);
+      
+      // Draw letter with outline
+      ctx.strokeText(particle.letter, 0, 0);
+      ctx.fillText(particle.letter, 0, 0);
+      
+      ctx.restore();
+    }
+    
+    ctx.restore();
+  }
 }
 
 requestAnimationFrame(tick);
 
 function handleJumpStart() {
-  // Start the game on first input
-  if (!gameStarted) {
-    gameStarted = true;
-    cupcakeCount = 3; // Reset cupcakes
+  // Start the game on first input with transition
+  if (!gameStarted && !isTransitioning) {
+    isTransitioning = true;
+    transitionProgress = 0;
+    
+    // Create text explosion for title
+    const title = "Happy Birthday, Jerry!";
+    const letterWidth = 48;
+    const startX = width / 2 - (title.length * letterWidth) / 2;
+    createTextExplosion(title, startX, height / 2 - 100, letterWidth);
+    
+    // Will actually start the game after transition
+    setTimeout(() => {
+      gameStarted = true;
+      isTransitioning = false;
+      cupcakeCount = 3; // Reset cupcakes
+    }, 1000);
     return;
   }
   
-  // Restart game if game over
-  if (gameOver) {
-    gameOver = false;
-    gameStarted = true;
-    cupcakeCount = 3;
-    score = 0;
-    // Reset player position
-    player.x = 50;
-    player.y = GROUND_Y;
-    player.velocityX = 0;
-    player.velocityY = 0;
-    player.isGrounded = true;
-    player.isDiving = false;
-    player.angle = 0;
-    player.hasDoubleJumped = false;
+  // Restart game if game over with transition
+  if (gameOver && !isTransitioning) {
+    isTransitioning = true;
+    transitionProgress = 0;
     
-    // Reset camera
-    camera.x = 0;
-    camera.y = GROUND_Y - height + GROUND_HEIGHT;
-    cameraOffsetX = 0;
-    cameraOffsetY = 0;
-    cameraAngle = 0;
-    cameraZoom = 1.0;
+    // Create text explosion for game over text
+    const gameOverText = "Great Job!";
+    const letterWidth = 36;
+    const startX = width / 2 - (gameOverText.length * letterWidth) / 2;
+    createTextExplosion(gameOverText, startX, height / 2 - 50, letterWidth);
     
-    // Clear existing balloons and clouds
-    blocks.length = 0;
-    clouds.length = 0;
-    particles.length = 0;
-    
-    // Spawn new balloons close to player
-    for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      gameOver = false;
+      gameStarted = true;
+      isTransitioning = false;
+      cupcakeCount = 3;
+      score = 0;
+      // Reset player position
+      player.x = 50;
+      player.y = GROUND_Y;
+      player.velocityX = 0;
+      player.velocityY = 0;
+      player.isGrounded = true;
+      player.isDiving = false;
+      player.angle = 0;
+      player.hasDoubleJumped = false;
+      
+      // Reset camera
+      camera.x = 0;
+      camera.y = GROUND_Y - height + GROUND_HEIGHT;
+      cameraOffsetX = 0;
+      cameraOffsetY = 0;
+      cameraAngle = 0;
+      cameraZoom = 1.0;
+      
+      // Clear existing balloons and clouds
+      blocks.length = 0;
+      clouds.length = 0;
+      particles.length = 0;
+      
+        // Spawn new balloons close to player
+      for (let i = 0; i < 8; i++) {
       const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
       const balloonSize = 60;
       const stringLength = 40;
       const balloonBodyHeight = balloonSize * 1.2;
       const heightFromGround = Math.random() * 200 + 100;
       
-      blocks.push({
+        blocks.push({
         x: player.x + width/2 + i * 200 + Math.random() * 150,
         width: balloonSize,
         height: balloonBodyHeight + stringLength,
         y: heightFromGround,  // Store height from ground directly
         velocityX: -1.5,
         color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
-      });
-    }
-    
-    // Spawn some initial clouds
-    for (let i = 0; i < 10; i++) {
-      const baseRadius = Math.random() * 30 + 20;
-      const numCircles = Math.floor(Math.random() * 4) + 2;
-      const circles = [];
-      
-      for (let j = 0; j < numCircles; j++) {
-        circles.push({
-          x: (Math.random() - 0.5) * baseRadius * 1.4,
-          y: (Math.random() - 0.5) * baseRadius * 1.0,
-          radius: baseRadius * (0.5 + Math.random() * 0.4)
         });
       }
       
-      clouds.push({
-        x: Math.random() * width * 2,
-        y: Math.random() * 300 + 50,
-        radius: baseRadius,
-        opacity: Math.random() * 0.4 + 0.3,
-        velocityX: -0.2 - Math.random() * 0.3,
-        circles: circles
-      });
-    }
+        // Spawn some initial clouds
+      for (let i = 0; i < 10; i++) {
+        const baseRadius = Math.random() * 30 + 20;
+        const numCircles = Math.floor(Math.random() * 4) + 2;
+        const circles = [];
+        
+        for (let j = 0; j < numCircles; j++) {
+          circles.push({
+            x: (Math.random() - 0.5) * baseRadius * 1.4,
+            y: (Math.random() - 0.5) * baseRadius * 1.0,
+            radius: baseRadius * (0.5 + Math.random() * 0.4)
+          });
+        }
+        
+        clouds.push({
+          x: Math.random() * width * 2,
+          y: Math.random() * 300 + 50,
+          radius: baseRadius,
+          opacity: Math.random() * 0.4 + 0.3,
+          velocityX: -0.2 - Math.random() * 0.3,
+          circles: circles
+        });
+      }
+    }, 1000);
     
     return;
   }
