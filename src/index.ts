@@ -86,7 +86,7 @@ interface Cloud {
 
 interface Block {
   x: number;
-  y: number;
+  y: number;  // Height from ground (bottom-up coordinate system)
   width: number;
   height: number;
   velocityX: number;
@@ -362,7 +362,7 @@ function generateBlock() {
     x: camera.x + width * 1.5 + Math.random() * 1500, // Spawn further ahead
     width: balloonSize,
     height: balloonBodyHeight + stringLength, // Balloon body + fixed string
-    y: GROUND_Y - heightFromGround,
+    y: heightFromGround,  // Store height from ground directly
     velocityX: -1.5,
     color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
@@ -403,7 +403,7 @@ for (let i = 0; i < 8; i++) {
     x: player.x + width + i * 200 + Math.random() * 150,
     width: balloonSize,
     height: balloonBodyHeight + stringLength,
-    y: GROUND_Y - heightFromGround,
+    y: heightFromGround,  // Store height from ground directly
     velocityX: -1.5,
     color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
@@ -453,7 +453,9 @@ function drawCloud(cloud: Cloud) {
 
 function drawBlock(block: Block) {
   const drawX = Math.floor(block.x - camera.x);
-  const drawY = Math.floor(block.y - camera.y);
+  // Convert from ground-relative to screen coordinates
+  const screenY = GROUND_Y - block.y;
+  const drawY = Math.floor(screenY - camera.y);
   
   // Calculate balloon body dimensions (fixed 60px balloon)
   const balloonBodyHeight = 72; // 60 * 1.2
@@ -618,8 +620,10 @@ function getPlayerVertices(): Point[] {
 function checkCollision(rect1: {x: number, y: number, width: number, height: number}, block: {x: number, y: number, width: number, height: number}): boolean {
   // Check collision with balloon body (oval), not the string
   const balloonBodyHeight = 72; // Fixed balloon body height
+  // Convert block position from ground-relative to screen coordinates
+  const blockScreenY = GROUND_Y - block.y;
   const balloonCenterX = block.x + block.width / 2;
-  const balloonCenterY = block.y + balloonBodyHeight / 2;
+  const balloonCenterY = blockScreenY + balloonBodyHeight / 2;
   const balloonRadiusX = block.width / 2;
   const balloonRadiusY = balloonBodyHeight / 2;
   
@@ -907,7 +911,9 @@ function tick(currentTime = 0) {
       blocks.splice(i, 1);
     } else {
       if (checkCollision(player, block)) {
-        createExplosion(block.x + block.width/2, block.y + block.height/2, block.color);
+        // Convert block.y from ground-relative to screen coordinates for explosion
+        const blockScreenY = GROUND_Y - block.y;
+        createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
         
         // Increment score for popping balloon
         score++;
@@ -1141,7 +1147,7 @@ function handleJumpStart() {
         x: player.x + width/2 + i * 200 + Math.random() * 150,
         width: balloonSize,
         height: balloonBodyHeight + stringLength,
-        y: GROUND_Y - heightFromGround,
+        y: heightFromGround,  // Store height from ground directly
         velocityX: -1.5,
         color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
       });
@@ -1285,4 +1291,10 @@ window.addEventListener("resize", () => {
   
   // Recalculate ground position
   GROUND_Y = height - GROUND_HEIGHT;
+  
+  // No need to adjust balloon positions - they're already ground-relative!
+  // Just update player position if grounded
+  if (player.isGrounded) {
+    player.y = GROUND_Y - player.height;
+  }
 });
