@@ -6,25 +6,49 @@ const canvas: HTMLCanvasElement = document.createElement("canvas");
 const ctx: CanvasRenderingContext2D = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-// Dynamic sizing based on viewport - always fill screen exactly
-function getCanvasSize() {
-  // Just use the actual viewport size
-  return { 
-    width: window.innerWidth, 
-    height: window.innerHeight 
-  };
+// Fixed internal game resolution (like unscaledDimensions in croissant runner)
+const BASE_WIDTH = 800;
+const BASE_HEIGHT = 600;
+
+// Calculate adjusted dimensions based on viewport
+function getAdjustedDimensions() {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  
+  if (viewportWidth > viewportHeight) {
+    // Landscape
+    const scaleFactor = viewportHeight / BASE_HEIGHT;
+    const scaledGameWidth = scaleFactor * BASE_WIDTH;
+    const unscaledLeadingWidth = (viewportWidth - scaledGameWidth) / scaleFactor;
+    return {
+      width: Math.floor(BASE_WIDTH + unscaledLeadingWidth),
+      height: BASE_HEIGHT
+    };
+  } else {
+    // Portrait
+    const scaleFactor = viewportWidth / BASE_WIDTH;
+    const scaledGameHeight = scaleFactor * BASE_HEIGHT;
+    const unscaledHeadRoom = (viewportHeight - scaledGameHeight) / scaleFactor;
+    return {
+      width: BASE_WIDTH,
+      height: Math.floor(BASE_HEIGHT + unscaledHeadRoom)
+    };
+  }
 }
 
-let { width, height } = getCanvasSize();
+let { width, height } = getAdjustedDimensions();
 const CAT_SCALE = 6;
 
 canvas.id = "game";
 canvas.width = width;
 canvas.height = height;
+canvas.style.width = '100%';
+canvas.style.height = '100%';
 document.body.appendChild(canvas);
 
 interface Point {
   x: number;
+  
   y: number;
 }
 
@@ -1252,26 +1276,13 @@ window.addEventListener("dragstart", (e: Event) => {
 
 // Handle window resize
 window.addEventListener("resize", () => {
-  const oldGroundY = GROUND_Y;
-  const newSize = getCanvasSize();
-  width = newSize.width;
-  height = newSize.height;
-  GROUND_Y = height - GROUND_HEIGHT;
-  
-  // Adjust balloon positions to maintain distance from ground
-  const groundShift = GROUND_Y - oldGroundY;
-  for (const block of blocks) {
-    block.y += groundShift;
-  }
-  
-  // Adjust player position if on ground
-  if (player.isGrounded) {
-    player.y = GROUND_Y - player.height;
-  } else {
-    player.y += groundShift;
-  }
-  
+  const newDimensions = getAdjustedDimensions();
+  width = newDimensions.width;
+  height = newDimensions.height;
   canvas.width = width;
   canvas.height = height;
   ctx.imageSmoothingEnabled = false;
+  
+  // Recalculate ground position
+  GROUND_Y = height - GROUND_HEIGHT;
 });
