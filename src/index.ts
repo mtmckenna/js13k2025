@@ -487,7 +487,13 @@ function generateCloud() {
 }
 
 function generateBlock() {
-  const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+  const balloonColors = [
+    '#ff3333', // Bright Red
+    '#33ff33', // Bright Green  
+    '#ffff33', // Bright Yellow
+    '#ff33ff', // Bright Magenta/Pink
+    '#3333ff'  // Bright Blue
+  ];
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
@@ -544,7 +550,13 @@ for (let i = 0; i < 10; i++) {
 }
 
 for (let i = 0; i < 8; i++) {
-  const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+  const balloonColors = [
+    '#ff3333', // Bright Red
+    '#33ff33', // Bright Green  
+    '#ffff33', // Bright Yellow
+    '#ff33ff', // Bright Magenta/Pink
+    '#3333ff'  // Bright Blue
+  ];
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
@@ -1213,11 +1225,11 @@ function tick(currentTime = 0) {
           bonusAwarded = true;
         }
         
-        // 5 same color balloons in a row bonus
-        if (consecutiveColorStreak >= 5) {
+        // 3 same color balloons in a row bonus
+        if (consecutiveColorStreak >= 3) {
           if (!bonusAwarded) { // Don't override if we just got another bonus
             scoreMultiplier = 3;
-            bonusText = "COLOR COMBO x5!";
+            bonusText = "COLOR COMBO x3!";
             bonusAnimationTime = 120;
             scoreAnimationTime = 60;
             playBonusSound();
@@ -1542,7 +1554,13 @@ function handleJumpStart() {
       
         // Spawn new balloons close to player
       for (let i = 0; i < 8; i++) {
-      const balloonColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+      const balloonColors = [
+        '#ff3333', // Bright Red
+        '#33ff33', // Bright Green  
+        '#ffff33', // Bright Yellow
+        '#ff33ff', // Bright Magenta/Pink
+        '#3333ff'  // Bright Blue
+      ];
       const balloonSize = 60;
       const stringLength = 40;
       const balloonBodyHeight = balloonSize * 1.2;
