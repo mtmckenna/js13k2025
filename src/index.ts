@@ -296,8 +296,8 @@ let scoreAnimationTime = 0;
 
 // Balloon spawn tracking for fairness
 let lastBalloonX = 0;
-const MAX_BALLOON_GAP = 200; // Maximum horizontal gap between balloons (triggers guaranteed spawn)
-const MAX_BALLOON_X_SPREAD = 300; // Maximum random X distance when spawning balloons
+const MAX_BALLOON_GAP = 120; // Maximum horizontal gap between balloons (triggers guaranteed spawn)
+const MAX_BALLOON_X_SPREAD = 200; // Maximum random X distance when spawning balloons
 const MIN_JUMPABLE_HEIGHT = 250; // Height reachable with a good jump
 const MIN_BALLOON_HEIGHT = 150; // Minimum height for any balloon (above player)
 const MAX_BALLOON_HEIGHT = 500; // Maximum height for balloons
@@ -1036,22 +1036,34 @@ function drawUI() {
   ctx.save();
   ctx.translate(width - 20, 60);
   ctx.scale(scoreAnimationScale, scoreAnimationScale);
-  const scoreText = `Current Score: ${score}`;
+  const scoreText = scoreMultiplier > 1 ? `Current Score: ${score} x${scoreMultiplier}` : `Current Score: ${score}`;
   if (scoreMultiplier > 1) {
     ctx.fillStyle = '#ffff00'; // Yellow when multiplier active
   }
   ctx.strokeText(scoreText, 0, 0);
   ctx.fillText(scoreText, 0, 0);
-  
-  // Show multiplier if active
-  if (scoreMultiplier > 1) {
-    ctx.font = '16px monospace';
-    ctx.fillStyle = '#ff6b6b';
-    const multiplierText = `x${scoreMultiplier}`;
-    ctx.strokeText(multiplierText, 0, 20);
-    ctx.fillText(multiplierText, 0, 20);
-  }
   ctx.restore();
+  
+  ctx.restore();
+  
+  // Draw streaks in top right
+  ctx.save();
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'right';
+  
+  // Color streak
+  ctx.fillStyle = lastBalloonColor || '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3;
+  const colorStreakText = `Color Streak: ${consecutiveColorStreak}`;
+  ctx.strokeText(colorStreakText, width - 20, 90);
+  ctx.fillText(colorStreakText, width - 20, 90);
+  
+  // Pop streak
+  ctx.fillStyle = '#ffffff';
+  const popStreakText = `Pop Streak: ${balloonsWithoutGround}`;
+  ctx.strokeText(popStreakText, width - 20, 115);
+  ctx.fillText(popStreakText, width - 20, 115);
   
   ctx.restore();
   
@@ -1443,32 +1455,36 @@ function tick(currentTime = 0) {
           lastBalloonColor = block.color;
         }
         
-        // Check for bonuses
-        let bonusAwarded = false;
+        // Calculate multipliers that build on each other
+        let balloonMultiplier = 1;
+        let colorMultiplier = 1;
         
-        // 10 balloons without touching ground bonus
-        if (balloonsWithoutGround > 0 && balloonsWithoutGround % 10 === 0) {
-          scoreMultiplier = 2;
-          bonusText = `${balloonsWithoutGround} BALLOON STREAK!`;
-          bonusAnimationTime = 120;
-          scoreAnimationTime = 60;
-          playBonusSound();
-          bonusAwarded = true;
-        }
-        
-        // 3 same color balloons in a row bonus
-        if (consecutiveColorStreak >= 3) {
-          if (!bonusAwarded) { // Don't override if we just got another bonus
-            scoreMultiplier = 3;
-            bonusText = "COLOR COMBO x3!";
+        // Progressive balloon streak multiplier: 10=2x, 20=3x, 30=4x, etc.
+        if (balloonsWithoutGround >= 10) {
+          balloonMultiplier = Math.floor(balloonsWithoutGround / 10) + 1;
+          if (balloonsWithoutGround % 10 === 0) {
+            bonusText = `${balloonsWithoutGround} BALLOON STREAK! x${balloonMultiplier}`;
             bonusAnimationTime = 120;
             scoreAnimationTime = 60;
             playBonusSound();
           }
-          consecutiveColorStreak = 0; // Reset after bonus
         }
         
-        // Increment score with multiplier
+        // Progressive color streak bonus - 3x, 4x, 5x, etc.
+        if (consecutiveColorStreak >= 3) {
+          colorMultiplier = consecutiveColorStreak;
+          if (consecutiveColorStreak === 3 || consecutiveColorStreak > 3) {
+            bonusText = `COLOR COMBO x${consecutiveColorStreak}!`;
+            bonusAnimationTime = 120;
+            scoreAnimationTime = 60;
+            playBonusSound();
+          }
+        }
+        
+        // Combine multipliers
+        scoreMultiplier = balloonMultiplier * colorMultiplier;
+        
+        // Increment score with combined multiplier
         const points = 1 * scoreMultiplier;
         score += points;
         if (score > highScore) {
@@ -1476,14 +1492,7 @@ function tick(currentTime = 0) {
           localStorage.setItem('birthdayGameHighScore', highScore.toString());
         }
         
-        // Reset multiplier after a few seconds (unless we just got a bonus)
-        if (!bonusAwarded && scoreMultiplier > 1) {
-          setTimeout(() => {
-            if (bonusAnimationTime <= 0) {
-              scoreMultiplier = 1;
-            }
-          }, 3000);
-        }
+        // Multiplier now lasts until you hit the ground
         
         // Only bounce if hitting from above (falling down)
         if (player.velocityY > 0) {
@@ -1538,7 +1547,7 @@ function tick(currentTime = 0) {
     generateFlower();
   }
   
-  if (Math.random() < 0.04) {
+  if (Math.random() < 0.06) {
     generateBlock();
   }
   
