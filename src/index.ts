@@ -1277,12 +1277,14 @@ function handleJumpStart() {
     const startX = width / 2 - (title.length * letterWidth) / 2;
     createTextExplosion(title, startX, height / 2 - 100, letterWidth);
     
+    // Play start game melody immediately
+    playStartGameSound();
+    
     // Will actually start the game after transition
     setTimeout(() => {
       gameStarted = true;
       isTransitioning = false;
       cupcakeCount = 3; // Reset cupcakes
-      playStartGameSound(); // Play start game melody
     }, 1000);
     return;
   }
@@ -1303,13 +1305,15 @@ function handleJumpStart() {
     const startX = width / 2 - (gameOverText.length * letterWidth) / 2;
     createTextExplosion(gameOverText, startX, height / 2 - 50, letterWidth);
     
+    // Play start game melody immediately when restarting
+    playStartGameSound();
+    
     setTimeout(() => {
       gameOver = false;
       gameStarted = true;
       isTransitioning = false;
       cupcakeCount = 3;
       score = 0;
-      playStartGameSound(); // Play start game melody when restarting
       // Reset player position
       player.x = 50;
       player.y = GROUND_Y;
