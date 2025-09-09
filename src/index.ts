@@ -347,8 +347,17 @@ function playLandSound() {
 }
 
 function playGameOverSound() {
-  // Descending notes
-  for (let i = 0; i < 3; i++) {
+  // Play ending phrase "Happy Birthday to you" (the final line)
+  const notes = [
+    { freq: 523, delay: 0, duration: 200 },     // C5 (Hap-)
+    { freq: 523, delay: 200, duration: 200 },   // C5 (-py)
+    { freq: 493, delay: 400, duration: 400 },   // B4 (Birth-)
+    { freq: 392, delay: 800, duration: 400 },   // G4 (-day)
+    { freq: 440, delay: 1200, duration: 400 },  // A4 (to)
+    { freq: 392, delay: 1600, duration: 800 },  // G4 (you - held longer)
+  ];
+  
+  notes.forEach(note => {
     setTimeout(() => {
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -357,15 +366,46 @@ function playGameOverSound() {
       gainNode.connect(audioContext.destination);
       
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(400 - i * 100, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
       
-      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
       
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    }, i * 150);
-  }
+      oscillator.stop(audioContext.currentTime + note.duration/1000);
+    }, note.delay);
+  });
+}
+
+function playStartGameSound() {
+  // Play opening phrase of birthday melody
+  const notes = [
+    { freq: 262, delay: 0, duration: 200 },     // C4
+    { freq: 262, delay: 200, duration: 200 },   // C4
+    { freq: 294, delay: 400, duration: 400 },   // D4
+    { freq: 262, delay: 800, duration: 400 },   // C4
+    { freq: 349, delay: 1200, duration: 400 },  // F4
+    { freq: 329, delay: 1600, duration: 600 },  // E4
+  ];
+  
+  notes.forEach(note => {
+    setTimeout(() => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
+      
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + note.duration/1000);
+    }, note.delay);
+  });
 }
 
 
@@ -767,6 +807,7 @@ function loseCupcake() {
     if (cupcakeCount === 0) {
       gameOver = true;
       gameOverTime = Date.now();
+      playGameOverSound(); // Play game over melody
       // High score is already saved in localStorage when balloons are popped
     }
   }
@@ -1241,6 +1282,7 @@ function handleJumpStart() {
       gameStarted = true;
       isTransitioning = false;
       cupcakeCount = 3; // Reset cupcakes
+      playStartGameSound(); // Play start game melody
     }, 1000);
     return;
   }
@@ -1267,6 +1309,7 @@ function handleJumpStart() {
       isTransitioning = false;
       cupcakeCount = 3;
       score = 0;
+      playStartGameSound(); // Play start game melody when restarting
       // Reset player position
       player.x = 50;
       player.y = GROUND_Y;
