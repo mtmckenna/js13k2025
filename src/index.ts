@@ -201,6 +201,7 @@ const cupcakeAnimations: Array<{
 // Game state
 let gameStarted = false;
 let gameOver = false;
+let gameOverTime = 0;
 let titleAnimationTime = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('birthdayGameHighScore') || '0');
@@ -765,6 +766,7 @@ function loseCupcake() {
     // Check for game over
     if (cupcakeCount === 0) {
       gameOver = true;
+      gameOverTime = Date.now();
       // High score is already saved in localStorage when balloons are popped
     }
   }
@@ -826,13 +828,24 @@ function drawGameOverScreen() {
   ctx.strokeText(highScoreText, width / 2, height / 2 + 60);
   ctx.fillText(highScoreText, width / 2, height / 2 + 60);
   
-  // Play again prompt
-  const playAgainText = "- Press any key to play again -";
-  const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
-  ctx.font = `${24 * pulseScale}px monospace`;
-  ctx.fillStyle = '#ffff00';
-  ctx.strokeText(playAgainText, width / 2, height - 100);
-  ctx.fillText(playAgainText, width / 2, height - 100);
+  // Play again prompt (fade in after 1 second)
+  const timeSinceGameOver = Date.now() - gameOverTime;
+  const fadeInDuration = 1000; // 1 second fade in
+  const textOpacity = Math.min(1, timeSinceGameOver / fadeInDuration);
+  
+  if (textOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = textOpacity;
+    
+    const playAgainText = "- Press any key to play again -";
+    const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
+    ctx.font = `${24 * pulseScale}px monospace`;
+    ctx.fillStyle = '#ffff00';
+    ctx.strokeText(playAgainText, width / 2, height - 100);
+    ctx.fillText(playAgainText, width / 2, height - 100);
+    
+    ctx.restore();
+  }
 }
 
 function drawTitleScreen() {
@@ -1223,8 +1236,13 @@ function handleJumpStart() {
     return;
   }
   
-  // Restart game if game over with transition
+  // Restart game if game over with transition (but wait 1 second first)
   if (gameOver && !isTransitioning) {
+    const timeSinceGameOver = Date.now() - gameOverTime;
+    if (timeSinceGameOver < 1000) {
+      return; // Don't allow restart for 1 second
+    }
+    
     isTransitioning = true;
     transitionProgress = 0;
     
