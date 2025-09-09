@@ -1027,6 +1027,7 @@ function tick(currentTime = 0) {
           
           player.isSpinning = true;
           player.spinVelocity = 0.3;
+          player.hasDoubleJumped = false; // Reset double jump after balloon bounce
         } else {
           playPopSound(); // Play pop sound when hitting from below
         }
