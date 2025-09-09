@@ -1307,7 +1307,7 @@ function tick(currentTime = 0) {
   requestAnimationFrame(tick);
   
   // Calculate delta time and accumulate
-  const deltaTime = currentTime - lastTime;
+  const deltaTime = Math.min(currentTime - lastTime, 100); // Cap at 100ms to prevent huge jumps
   lastTime = currentTime;
   accumulator += deltaTime;
   
