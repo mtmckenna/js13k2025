@@ -219,6 +219,14 @@ let bonusText = '';
 let scoreAnimationScale = 1;
 let scoreAnimationTime = 0;
 
+// Balloon spawn tracking for fairness
+let lastBalloonX = 0;
+const MAX_BALLOON_GAP = 300; // Maximum horizontal gap between balloons (triggers guaranteed spawn)
+const MAX_BALLOON_X_SPREAD = 300; // Maximum random X distance when spawning balloons
+const MIN_JUMPABLE_HEIGHT = 250; // Height reachable with a good jump
+const MIN_BALLOON_HEIGHT = 150; // Minimum height for any balloon (above player)
+const MAX_BALLOON_HEIGHT = 500; // Maximum height for balloons
+
 // Transition state
 let isTransitioning = false;
 let transitionProgress = 0;
@@ -483,16 +491,32 @@ function generateBlock() {
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
-  const heightFromGround = Math.random() * 350 + 150; // More vertical variety (150-500px from ground, above player height)
+  
+  // Check if we need to guarantee a reachable balloon
+  const needsGuaranteedBalloon = lastBalloonX === 0 || 
+    (camera.x + width * 1.5 - lastBalloonX) > MAX_BALLOON_GAP;
+  
+  let heightFromGround;
+  if (needsGuaranteedBalloon) {
+    // Guarantee at least one balloon at jumpable height
+    heightFromGround = Math.random() * (MIN_JUMPABLE_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT;
+  } else {
+    // Normal random height
+    heightFromGround = Math.random() * (MAX_BALLOON_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT;
+  }
+  
+  const newBalloonX = camera.x + width * 1.5 + Math.random() * MAX_BALLOON_X_SPREAD;
   
   blocks.push({
-    x: camera.x + width * 1.5 + Math.random() * 1500, // Spawn further ahead
+    x: newBalloonX,
     width: balloonSize,
     height: balloonBodyHeight + stringLength, // Balloon body + fixed string
     y: heightFromGround,  // Store height from ground directly
     velocityX: -1.5,
     color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
+  
+  lastBalloonX = newBalloonX;
 }
 
 for (let i = 0; i < 10; i++) {
@@ -524,16 +548,27 @@ for (let i = 0; i < 8; i++) {
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
-  const heightFromGround = Math.random() * 350 + 150; // More vertical variety (150-500px from ground, above player height)
+  
+  // Make sure at least every other balloon is jumpable
+  const heightFromGround = (i % 2 === 0) 
+    ? Math.random() * (MIN_JUMPABLE_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT  // easily jumpable
+    : Math.random() * (MAX_BALLOON_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT; // may need bouncing
+  
+  const balloonX = player.x + width + i * 200 + Math.random() * 150;
   
   blocks.push({
-    x: player.x + width + i * 200 + Math.random() * 150,
+    x: balloonX,
     width: balloonSize,
     height: balloonBodyHeight + stringLength,
     y: heightFromGround,  // Store height from ground directly
     velocityX: -1.5,
     color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
   });
+  
+  // Track the last balloon position
+  if (i === 7) {
+    lastBalloonX = balloonX;
+  }
 }
 
 let jumpPressed = false;
@@ -1480,6 +1515,7 @@ function handleJumpStart() {
       bonusText = '';
       scoreAnimationScale = 1;
       scoreAnimationTime = 0;
+      lastBalloonX = 0;
       
       // Reset player position
       player.x = 50;
@@ -1510,7 +1546,9 @@ function handleJumpStart() {
       const balloonSize = 60;
       const stringLength = 40;
       const balloonBodyHeight = balloonSize * 1.2;
-      const heightFromGround = Math.random() * 200 + 100;
+      const heightFromGround = (i % 2 === 0)
+        ? Math.random() * (MIN_JUMPABLE_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT
+        : Math.random() * (MAX_BALLOON_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT;
       
         blocks.push({
         x: player.x + width/2 + i * 200 + Math.random() * 150,
