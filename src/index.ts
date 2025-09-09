@@ -483,7 +483,7 @@ function generateBlock() {
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
-  const heightFromGround = Math.random() * 200 + 100; // Much more variety (100-300px from ground)
+  const heightFromGround = Math.random() * 350 + 150; // More vertical variety (150-500px from ground, above player height)
   
   blocks.push({
     x: camera.x + width * 1.5 + Math.random() * 1500, // Spawn further ahead
@@ -524,7 +524,7 @@ for (let i = 0; i < 8; i++) {
   const balloonSize = 60; // Fixed balloon size
   const stringLength = 40; // Fixed shorter string length
   const balloonBodyHeight = balloonSize * 1.2; // 72px
-  const heightFromGround = Math.random() * 200 + 100; // Much more variety (100-300px from ground)
+  const heightFromGround = Math.random() * 350 + 150; // More vertical variety (150-500px from ground, above player height)
   
   blocks.push({
     x: player.x + width + i * 200 + Math.random() * 150,
