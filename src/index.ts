@@ -91,6 +91,9 @@ interface Block {
   height: number;
   velocityX: number;
   color: string;
+  sinking?: boolean;  // Is balloon sinking after being hit
+  sinkTime?: number;  // How long it's been sinking
+  sinkVelocityY?: number;  // Downward velocity while sinking
 }
 
 interface Particle {
@@ -1196,12 +1199,29 @@ function tick(currentTime = 0) {
     if (block.x < camera.x - width * 0.5) { // Despawn further offscreen
       blocks.splice(i, 1);
     } else {
-      if (checkCollision(player, block)) {
-        // Convert block.y from ground-relative to screen coordinates for explosion
-        const blockScreenY = GROUND_Y - block.y;
-        createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
+      // Check if balloon is already sinking (being popped)
+      if (block.sinking) {
+        // Update sinking animation
+        block.sinkTime = (block.sinkTime || 0) + 1;
+        block.sinkVelocityY = (block.sinkVelocityY || 0) + 0.3; // Accelerate downward
+        block.y -= block.sinkVelocityY; // Move balloon down
         
-        // Track streaks
+        // Pop after sinking for a bit (about 10 frames)
+        if (block.sinkTime >= 10) {
+          const blockScreenY = GROUND_Y - block.y;
+          createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
+          blocks.splice(i, 1);
+          continue;
+        }
+      }
+      
+      if (checkCollision(player, block) && !block.sinking) {
+        // Start sinking animation
+        block.sinking = true;
+        block.sinkTime = 0;
+        block.sinkVelocityY = 1; // Initial downward velocity
+        
+        // Track streaks immediately (don't wait for pop)
         balloonsWithoutGround++;
         
         // Check color streak
@@ -1275,12 +1295,15 @@ function tick(currentTime = 0) {
           player.spinVelocity = BALLOON_SPIN_VELOCITY;
           player.hasDoubleJumped = false; // Reset double jump after balloon bounce
         } else {
-          playPopSound(); // Play pop sound when hitting from below
+          // Hit from below - instant pop
+          playPopSound();
+          const blockScreenY = GROUND_Y - block.y;
+          createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
+          blocks.splice(i, 1);
+          continue; // Skip drawing since we just removed it
         }
-        // If hitting from below (going up), just pop the balloon without affecting movement
-        
-        blocks.splice(i, 1);
-        continue;
+        // Don't remove block here if sinking - let sinking animation handle it
+        // Don't skip drawing - we still want to see the balloon sink
       }
       drawBlock(block);
     }
