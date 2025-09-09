@@ -115,11 +115,14 @@ interface CatSprite {
 const GROUND_HEIGHT = 120;
 const GRAVITY = 0.2;
 const DIVE_GRAVITY_MULTIPLIER = 1.0;
-const JUMP_FORCE = -3.2;
-const DOUBLE_JUMP_FORCE = -2.8;
-const JUMP_BOOST = -1;
+const JUMP_FORCE = -1.2;
+const DOUBLE_JUMP_FORCE = -1.5;
+const JUMP_BOOST = -.9;
 const NORMAL_SPEED = 3;
 const DIVE_SPEED = 5;
+const BALLOON_BOUNCE_BASE = -4; // Base upward velocity when bouncing off balloon
+const BALLOON_BOUNCE_BOOSTED = -3.5; // Bounce velocity when holding jump
+const BALLOON_SPIN_VELOCITY = 0.3; // Spin speed after balloon bounce
 let GROUND_Y = height - GROUND_HEIGHT;
 const PLAYER_WIDTH = 32;
 const PLAYER_HEIGHT = 32;
@@ -1065,17 +1068,17 @@ function tick(currentTime = 0) {
           playBounceSound(); // Play bounce sound
           
           // Base bounce is stronger now
-          player.velocityY = -8; // Strong upward bounce
+          player.velocityY = BALLOON_BOUNCE_BASE; // Moderate upward bounce
           player.velocityX = NORMAL_SPEED; // Maintain forward momentum
           
           // If space is held during bounce, apply extra jump boost
           if (jumpPressed) {
-            player.velocityY = -10; // Even stronger bounce when holding jump
+            player.velocityY = BALLOON_BOUNCE_BOOSTED; // Stronger bounce when holding jump
             jumpHoldTime = 0; // Reset jump hold time for consistent bounces
           }
           
           player.isSpinning = true;
-          player.spinVelocity = 0.3;
+          player.spinVelocity = BALLOON_SPIN_VELOCITY;
           player.hasDoubleJumped = false; // Reset double jump after balloon bounce
         } else {
           playPopSound(); // Play pop sound when hitting from below
@@ -1402,7 +1405,7 @@ function handleJumpStart() {
         player.velocityY = DOUBLE_JUMP_FORCE;
         player.hasDoubleJumped = true;
         player.isSpinning = true;
-        player.spinVelocity = 0.3;
+        player.spinVelocity = BALLOON_SPIN_VELOCITY;
         lastJumpTime = currentTime;
         playDoubleJumpSound();
       } else {
