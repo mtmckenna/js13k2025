@@ -209,6 +209,16 @@ let titleAnimationTime = 0;
 let score = 0;
 let highScore = parseInt(localStorage.getItem('birthdayGameHighScore') || '0');
 
+// Streak tracking
+let balloonsWithoutGround = 0;
+let consecutiveColorStreak = 0;
+let lastBalloonColor = '';
+let scoreMultiplier = 1;
+let bonusAnimationTime = 0;
+let bonusText = '';
+let scoreAnimationScale = 1;
+let scoreAnimationTime = 0;
+
 // Transition state
 let isTransitioning = false;
 let transitionProgress = 0;
@@ -403,6 +413,38 @@ function playStartGameSound() {
       oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
       
       gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + note.duration/1000);
+    }, note.delay);
+  });
+}
+
+function playBonusSound() {
+  // Play middle phrase of birthday melody (dear Jerry part) in celebratory way
+  const notes = [
+    { freq: 262, delay: 0, duration: 200 },     // C4
+    { freq: 262, delay: 200, duration: 200 },   // C4
+    { freq: 523, delay: 400, duration: 400 },   // C5 (octave up)
+    { freq: 440, delay: 800, duration: 400 },   // A4
+    { freq: 349, delay: 1200, duration: 400 },  // F4
+    { freq: 329, delay: 1600, duration: 400 },  // E4
+    { freq: 294, delay: 2000, duration: 400 },  // D4
+  ];
+  
+  notes.forEach(note => {
+    setTimeout(() => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime);
+      
+      gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.duration/1000);
       
       oscillator.start(audioContext.currentTime);
@@ -741,8 +783,17 @@ function drawUI() {
     ctx.restore();
   }
   
-  // Draw score in top right
+  // Draw score in top right with animation
   ctx.save();
+  
+  // Apply score animation
+  if (scoreAnimationTime > 0) {
+    scoreAnimationScale = 1 + Math.sin(scoreAnimationTime * 0.3) * 0.2;
+    scoreAnimationTime--;
+  } else {
+    scoreAnimationScale = 1;
+  }
+  
   ctx.font = '20px monospace';
   ctx.textAlign = 'right';
   ctx.fillStyle = '#fff';
@@ -754,12 +805,55 @@ function drawUI() {
   ctx.strokeText(highScoreText, width - 20, 30);
   ctx.fillText(highScoreText, width - 20, 30);
   
-  // Current score
+  // Current score with animation
+  ctx.save();
+  ctx.translate(width - 20, 60);
+  ctx.scale(scoreAnimationScale, scoreAnimationScale);
   const scoreText = `Current Score: ${score}`;
-  ctx.strokeText(scoreText, width - 20, 60);
-  ctx.fillText(scoreText, width - 20, 60);
+  if (scoreMultiplier > 1) {
+    ctx.fillStyle = '#ffff00'; // Yellow when multiplier active
+  }
+  ctx.strokeText(scoreText, 0, 0);
+  ctx.fillText(scoreText, 0, 0);
+  
+  // Show multiplier if active
+  if (scoreMultiplier > 1) {
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#ff6b6b';
+    const multiplierText = `x${scoreMultiplier}`;
+    ctx.strokeText(multiplierText, 0, 20);
+    ctx.fillText(multiplierText, 0, 20);
+  }
+  ctx.restore();
   
   ctx.restore();
+  
+  // Draw bonus text if active
+  if (bonusAnimationTime > 0) {
+    ctx.save();
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Rainbow effect for bonus text
+    const hue = (bonusAnimationTime * 5) % 360;
+    ctx.fillStyle = `hsl(${hue}, 70%, 50%)`;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 4;
+    
+    // Bounce animation
+    const bounce = Math.sin(bonusAnimationTime * 0.2) * 10;
+    const scale = 1 + Math.sin(bonusAnimationTime * 0.3) * 0.2;
+    
+    ctx.translate(width / 2, height / 3 + bounce);
+    ctx.scale(scale, scale);
+    
+    ctx.strokeText(bonusText, 0, 0);
+    ctx.fillText(bonusText, 0, 0);
+    
+    ctx.restore();
+    bonusAnimationTime--;
+  }
   
   // Draw animating cupcakes
   for (let i = cupcakeAnimations.length - 1; i >= 0; i--) {
@@ -1056,11 +1150,57 @@ function tick(currentTime = 0) {
         const blockScreenY = GROUND_Y - block.y;
         createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
         
-        // Increment score for popping balloon
-        score++;
+        // Track streaks
+        balloonsWithoutGround++;
+        
+        // Check color streak
+        if (block.color === lastBalloonColor) {
+          consecutiveColorStreak++;
+        } else {
+          consecutiveColorStreak = 1;
+          lastBalloonColor = block.color;
+        }
+        
+        // Check for bonuses
+        let bonusAwarded = false;
+        
+        // 10 balloons without touching ground bonus
+        if (balloonsWithoutGround > 0 && balloonsWithoutGround % 10 === 0) {
+          scoreMultiplier = 2;
+          bonusText = `${balloonsWithoutGround} BALLOON STREAK!`;
+          bonusAnimationTime = 120;
+          scoreAnimationTime = 60;
+          playBonusSound();
+          bonusAwarded = true;
+        }
+        
+        // 5 same color balloons in a row bonus
+        if (consecutiveColorStreak >= 5) {
+          if (!bonusAwarded) { // Don't override if we just got another bonus
+            scoreMultiplier = 3;
+            bonusText = "COLOR COMBO x5!";
+            bonusAnimationTime = 120;
+            scoreAnimationTime = 60;
+            playBonusSound();
+          }
+          consecutiveColorStreak = 0; // Reset after bonus
+        }
+        
+        // Increment score with multiplier
+        const points = 1 * scoreMultiplier;
+        score += points;
         if (score > highScore) {
           highScore = score;
           localStorage.setItem('birthdayGameHighScore', highScore.toString());
+        }
+        
+        // Reset multiplier after a few seconds (unless we just got a bonus)
+        if (!bonusAwarded && scoreMultiplier > 1) {
+          setTimeout(() => {
+            if (bonusAnimationTime <= 0) {
+              scoreMultiplier = 1;
+            }
+          }, 3000);
         }
         
         // Only bounce if hitting from above (falling down)
@@ -1203,6 +1343,12 @@ function tick(currentTime = 0) {
     if (!player.isGrounded && gameStarted) {
       loseCupcake(); // Lose a cupcake when landing (only during gameplay)
       playLandSound(); // Play landing sound
+      
+      // Reset balloon streak
+      balloonsWithoutGround = 0;
+      consecutiveColorStreak = 0;
+      lastBalloonColor = '';
+      scoreMultiplier = 1; // Reset multiplier on ground hit
     }
     
     player.y = GROUND_Y - player.height;
@@ -1317,6 +1463,17 @@ function handleJumpStart() {
       isTransitioning = false;
       cupcakeCount = 3;
       score = 0;
+      
+      // Reset streak tracking
+      balloonsWithoutGround = 0;
+      consecutiveColorStreak = 0;
+      lastBalloonColor = '';
+      scoreMultiplier = 1;
+      bonusAnimationTime = 0;
+      bonusText = '';
+      scoreAnimationScale = 1;
+      scoreAnimationTime = 0;
+      
       // Reset player position
       player.x = 50;
       player.y = GROUND_Y;
