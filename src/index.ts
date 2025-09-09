@@ -544,6 +544,10 @@ const MAX_JUMP_HOLD_TIME = 15;
 let lastJumpTime = 0;
 const DOUBLE_JUMP_WINDOW = 300; // milliseconds to allow double jump
 
+// Bounce grace period
+let lastBounceTime = 0;
+const BOUNCE_GRACE_PERIOD = 300; // milliseconds after bounce where jump won't dive
+
 function drawShape(points: Point[], color: string) {
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -1207,6 +1211,9 @@ function tick(currentTime = 0) {
         if (player.velocityY > 0) {
           playBounceSound(); // Play bounce sound
           
+          // Record bounce time for grace period
+          lastBounceTime = performance.now();
+          
           // Base bounce is stronger now
           player.velocityY = BALLOON_BOUNCE_BASE; // Moderate upward bounce
           player.velocityX = NORMAL_SPEED; // Maintain forward momentum
@@ -1566,13 +1573,21 @@ function handleJumpStart() {
         lastJumpTime = currentTime;
         playDoubleJumpSound();
       } else {
-        // Regular dive toggle logic
-        if (player.isDiving) {
-          player.isDiving = false;
+        // Check if we're in bounce grace period
+        const timeSinceBounce = currentTime - lastBounceTime;
+        if (timeSinceBounce < BOUNCE_GRACE_PERIOD) {
+          // Within grace period - apply boost instead of dive
+          player.velocityY = BALLOON_BOUNCE_BOOSTED;
+          jumpHoldTime = 0;
         } else {
-          player.isDiving = true;
-          player.velocityY = Math.max(player.velocityY, 2);
-          player.velocityX = DIVE_SPEED;
+          // Regular dive toggle logic
+          if (player.isDiving) {
+            player.isDiving = false;
+          } else {
+            player.isDiving = true;
+            player.velocityY = Math.max(player.velocityY, 2);
+            player.velocityX = DIVE_SPEED;
+          }
         }
         lastJumpTime = currentTime;
       }
