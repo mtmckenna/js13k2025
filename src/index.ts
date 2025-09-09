@@ -1029,7 +1029,7 @@ function drawGameOverScreen() {
     ctx.save();
     ctx.globalAlpha = textOpacity;
     
-    const playAgainText = "- Press any key to play again -";
+    const playAgainText = "- Press jump to play again -";
     const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
     ctx.font = `${24 * pulseScale}px monospace`;
     ctx.fillStyle = '#ffff00';
@@ -1114,7 +1114,7 @@ function drawTitleScreen() {
   ctx.fillText(warning, width / 2, height / 2 + 160);
   
   // Start prompt
-  const startText = "- Press any key to start -";
+  const startText = "- Press jump to start -";
   const pulseScale = 1 + Math.sin(titleAnimationTime * 0.005) * 0.1;
   ctx.font = `${20 * pulseScale}px monospace`;
   ctx.fillStyle = '#ffff00';
