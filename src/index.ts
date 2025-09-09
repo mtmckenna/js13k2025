@@ -97,6 +97,13 @@ interface Block {
   sinkVelocityY?: number;  // Downward velocity while sinking
 }
 
+interface Flower {
+  x: number;
+  y: number; // Height from ground (0 = ground level, positive = higher)
+  color: string;
+  type: number; // 0-2 for different flower types
+}
+
 interface Particle {
   x: number;
   y: number;
@@ -185,12 +192,16 @@ let cameraOffsetY = 0; // Vertical offset for zoom bias
 const MAX_BLOCKS = 100;
 const MAX_CLOUDS = 50;
 const MAX_CIRCLES_PER_CLOUD = 5;
+const MAX_FLOWERS = 200;
 
 const clouds: Cloud[] = new Array(MAX_CLOUDS);
 let cloudCount = 0;
 
 const blocks: Block[] = new Array(MAX_BLOCKS);
 let blockCount = 0;
+
+const flowers: Flower[] = new Array(MAX_FLOWERS);
+let flowerCount = 0;
 
 // Pre-allocate circle arrays for clouds
 const cloudCirclePool: Array<Array<{x: number, y: number, radius: number}>> = new Array(MAX_CLOUDS);
@@ -215,6 +226,13 @@ for (let i = 0; i < MAX_CLOUDS; i++) {
     x: 0, y: 0, radius: 0, opacity: 0,
     velocityX: 0, circles: cloudCirclePool[i], // Use pre-allocated circle array
     circleCount: 0
+  };
+}
+
+// Initialize flowers
+for (let i = 0; i < MAX_FLOWERS; i++) {
+  flowers[i] = {
+    x: 0, y: 0, color: '#ff69b4', type: 0
   };
 }
 
@@ -562,6 +580,22 @@ function generateCloud() {
   cloudCount++;
 }
 
+function generateFlower() {
+  // Generate flowers sparsely across the ground
+  if (flowerCount >= MAX_FLOWERS) return;
+  
+  const flower = flowers[flowerCount];
+  flower.x = camera.x + width * 1.5 + Math.random() * 200;
+  flower.y = Math.random() * GROUND_HEIGHT; // Spread vertically across grass area
+  flower.type = 0; // Only use the 5-petal flower type
+  
+  // Choose flower colors (pink variations)
+  const flowerColors = ['#ff69b4', '#ff1493', '#dda0dd', '#da70d6', '#ffffff', '#ffb6c1'];
+  flower.color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+  
+  flowerCount++;
+}
+
 function generateBlock() {
   // Find an inactive block to reuse
   if (blockCount >= MAX_BLOCKS) return; // Can't spawn more
@@ -630,6 +664,19 @@ for (let i = 0; i < 10; i++) {
   }
   
   cloudCount++;
+}
+
+// Initialize some flowers across the ground
+for (let i = 0; i < 30; i++) {
+  const flower = flowers[flowerCount];
+  flower.x = Math.random() * width * 4; // Spread across initial area
+  flower.y = Math.random() * GROUND_HEIGHT; // Spread vertically across grass area
+  flower.type = 0; // Only use 5-petal flower
+  
+  const flowerColors = ['#ff69b4', '#ff1493', '#dda0dd', '#da70d6', '#ffffff', '#ffb6c1'];
+  flower.color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+  
+  flowerCount++;
 }
 
 // Initialize initial balloons
@@ -715,6 +762,34 @@ function drawCloud(cloud: Cloud) {
     ctx.arc(drawX, drawY, circle.radius, 0, Math.PI * 2);
     ctx.fill();
   }
+  
+  ctx.restore();
+}
+
+function drawFlower(flower: Flower) {
+  const drawX = Math.floor(flower.x - camera.x);
+  // Spread flowers across the grass area: GROUND_Y is top, GROUND_Y + GROUND_HEIGHT is bottom
+  const drawY = Math.floor(GROUND_Y + flower.y - camera.y);
+  
+  ctx.save();
+  
+  // Draw 5-petal flower with yellow center
+  ctx.fillStyle = flower.color;
+  const petalSize = 3;
+  // Draw 5 petals around center
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * Math.PI * 2) / 5;
+    const petalX = drawX + Math.cos(angle) * 4;
+    const petalY = drawY - 8 + Math.sin(angle) * 4;
+    ctx.beginPath();
+    ctx.arc(petalX, petalY, petalSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Center
+  ctx.fillStyle = '#ffff00';
+  ctx.beginPath();
+  ctx.arc(drawX, drawY - 8, 2, 0, Math.PI * 2);
+  ctx.fill();
   
   ctx.restore();
 }
@@ -1285,6 +1360,25 @@ function tick(currentTime = 0) {
   ctx.fillStyle = '#27ae60';
   ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, height * 3);
   
+  // Process flowers - compact array to avoid splice (after ground is drawn)
+  let newFlowerCount = 0;
+  for (let i = 0; i < flowerCount; i++) {
+    const flower = flowers[i];
+    
+    // Keep flower if still on screen
+    if (flower.x >= camera.x - width * 0.5) {
+      if (i !== newFlowerCount) {
+        // Swap flowers to compact array
+        const temp = flowers[newFlowerCount];
+        flowers[newFlowerCount] = flower;
+        flowers[i] = temp;
+      }
+      drawFlower(flower);
+      newFlowerCount++;
+    }
+  }
+  flowerCount = newFlowerCount;
+  
   // Process clouds - compact array to avoid splice
   let newCloudCount = 0;
   for (let i = 0; i < cloudCount; i++) {
@@ -1440,6 +1534,10 @@ function tick(currentTime = 0) {
     generateCloud();
   }
   
+  if (Math.random() < 0.08) {
+    generateFlower();
+  }
+  
   if (Math.random() < 0.03) {
     generateBlock();
   }
@@ -1460,7 +1558,6 @@ function tick(currentTime = 0) {
     }
   }
   
-  drawGround();
   
   updatePlayerAnimation();
   
@@ -1704,6 +1801,7 @@ function handleJumpStart() {
       // Reset counts without resizing arrays
       blockCount = 0;
       cloudCount = 0;
+      flowerCount = 0;
       // Reset all particles instead of clearing array
       for (let i = 0; i < particleCount; i++) {
         particles[i].life = 0;
@@ -1763,6 +1861,19 @@ function handleJumpStart() {
         }
         
         cloudCount++;
+      }
+      
+      // Spawn some initial flowers using pre-allocated objects  
+      for (let i = 0; i < 20 && flowerCount < MAX_FLOWERS; i++) {
+        const flower = flowers[flowerCount];
+        flower.x = Math.random() * width * 2;
+        flower.y = Math.random() * GROUND_HEIGHT; // Spread vertically across grass area
+        flower.type = 0; // Only use 5-petal flower
+        
+        const flowerColors = ['#ff69b4', '#ff1493', '#dda0dd', '#da70d6', '#ffffff', '#ffb6c1'];
+        flower.color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        
+        flowerCount++;
       }
     }, 1000);
     
