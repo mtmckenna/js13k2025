@@ -82,6 +82,7 @@ interface Cloud {
   opacity: number;
   velocityX: number;
   circles: { x: number; y: number; radius: number }[];
+  circleCount: number; // Track how many circles are active
 }
 
 interface Block {
@@ -180,9 +181,62 @@ let cameraAngle = 0; // Smooth camera rotation
 let cameraZoom = 1.0; // Camera zoom for speed effect
 let cameraOffsetY = 0; // Vertical offset for zoom bias
 
-const clouds: Cloud[] = [];
-const blocks: Block[] = [];
-const particles: Particle[] = [];
+// Pre-allocate arrays to avoid resizing
+const MAX_BLOCKS = 100;
+const MAX_CLOUDS = 50;
+const MAX_CIRCLES_PER_CLOUD = 5;
+
+const clouds: Cloud[] = new Array(MAX_CLOUDS);
+let cloudCount = 0;
+
+const blocks: Block[] = new Array(MAX_BLOCKS);
+let blockCount = 0;
+
+// Pre-allocate circle arrays for clouds
+const cloudCirclePool: Array<Array<{x: number, y: number, radius: number}>> = new Array(MAX_CLOUDS);
+for (let i = 0; i < MAX_CLOUDS; i++) {
+  cloudCirclePool[i] = new Array(MAX_CIRCLES_PER_CLOUD);
+  for (let j = 0; j < MAX_CIRCLES_PER_CLOUD; j++) {
+    cloudCirclePool[i][j] = { x: 0, y: 0, radius: 0 };
+  }
+}
+
+// Initialize blocks and clouds
+for (let i = 0; i < MAX_BLOCKS; i++) {
+  blocks[i] = {
+    x: 0, y: 0, width: 0, height: 0,
+    velocityX: 0, color: '',
+    sinking: false, sinkTime: 0, sinkVelocityY: 0
+  };
+}
+
+for (let i = 0; i < MAX_CLOUDS; i++) {
+  clouds[i] = {
+    x: 0, y: 0, radius: 0, opacity: 0,
+    velocityX: 0, circles: cloudCirclePool[i], // Use pre-allocated circle array
+    circleCount: 0
+  };
+}
+
+// Pre-allocate particle array to avoid resizing
+const MAX_PARTICLES = 400; // Support up to 20 explosions at once
+const particles: Particle[] = new Array(MAX_PARTICLES);
+let particleCount = 0;
+
+// Initialize all particles to avoid null checks
+for (let i = 0; i < MAX_PARTICLES; i++) {
+  particles[i] = {
+    x: 0,
+    y: 0,
+    velocityX: 0,
+    velocityY: 0,
+    life: 0,
+    color: '',
+    size: 0,
+    angle: 0,
+    rotationSpeed: 0
+  };
+}
 
 const catImage = new Image();
 catImage.src = catImageUrl;
@@ -233,7 +287,10 @@ const MAX_BALLOON_HEIGHT = 500; // Maximum height for balloons
 // Transition state
 let isTransitioning = false;
 let transitionProgress = 0;
-let textParticles: Array<{
+
+// Pre-allocate text particles to avoid resizing
+const MAX_TEXT_PARTICLES = 50;
+const textParticles: Array<{
   x: number;
   y: number;
   velocityX: number;
@@ -244,33 +301,47 @@ let textParticles: Array<{
   color: string;
   size: number;
   life: number;
-}> = [];
+}> = new Array(MAX_TEXT_PARTICLES);
+let textParticleCount = 0;
+
+// Initialize text particles
+for (let i = 0; i < MAX_TEXT_PARTICLES; i++) {
+  textParticles[i] = {
+    x: 0, y: 0, velocityX: 0, velocityY: 0,
+    rotation: 0, rotationSpeed: 0,
+    letter: '', color: '', size: 0, life: 0
+  };
+}
+
 let overlayOpacity = 0.7;
 
 // Audio setup
 const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
 
 function createTextExplosion(text: string, startX: number, startY: number, letterSpacing: number) {
-  textParticles = [];
-  for (let i = 0; i < text.length; i++) {
+  textParticleCount = 0;
+  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
+  
+  for (let i = 0; i < text.length && textParticleCount < MAX_TEXT_PARTICLES; i++) {
     const letter = text[i];
     if (letter === ' ') continue;
     
-    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7'];
     const x = startX + i * letterSpacing;
+    const particle = textParticles[textParticleCount];
     
-    textParticles.push({
-      x: x,
-      y: startY,
-      velocityX: (Math.random() - 0.5) * 15,
-      velocityY: -Math.random() * 10 - 5,
-      rotation: 0,
-      rotationSpeed: (Math.random() - 0.5) * 0.3,
-      letter: letter,
-      color: colors[i % colors.length],
-      size: 48,
-      life: 60
-    });
+    // Reuse existing particle object
+    particle.x = x;
+    particle.y = startY;
+    particle.velocityX = (Math.random() - 0.5) * 15;
+    particle.velocityY = -Math.random() * 10 - 5;
+    particle.rotation = 0;
+    particle.rotationSpeed = (Math.random() - 0.5) * 0.3;
+    particle.letter = letter;
+    particle.color = colors[i % colors.length];
+    particle.size = 48;
+    particle.life = 60;
+    
+    textParticleCount++;
   }
 }
 
@@ -466,30 +537,35 @@ function playBonusSound() {
 
 
 function generateCloud() {
+  // Find an inactive cloud to reuse
+  if (cloudCount >= MAX_CLOUDS) return; // Can't spawn more
+  
   const baseRadius = Math.random() * 30 + 20;
   const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
-  const circles = [];
   
-  // Create multiple overlapping circles with more spacing
+  const cloud = clouds[cloudCount];
+  cloud.x = camera.x + width * 1.5 + Math.random() * 400; // Spawn further ahead
+  cloud.y = Math.random() * 300 + 50; // Spread vertically more
+  cloud.radius = baseRadius;
+  cloud.opacity = Math.random() * 0.4 + 0.3;
+  cloud.velocityX = -0.2 - Math.random() * 0.3; // More varied parallax speeds
+  cloud.circleCount = numCircles;
+  
+  // Reuse pre-allocated circles array - modify existing objects
   for (let i = 0; i < numCircles; i++) {
-    circles.push({
-      x: (Math.random() - 0.5) * baseRadius * 1.4,
-      y: (Math.random() - 0.5) * baseRadius * 1.0,
-      radius: baseRadius * (0.5 + Math.random() * 0.4)
-    });
+    const circle = cloud.circles[i];
+    circle.x = (Math.random() - 0.5) * baseRadius * 1.4;
+    circle.y = (Math.random() - 0.5) * baseRadius * 1.0;
+    circle.radius = baseRadius * (0.5 + Math.random() * 0.4);
   }
   
-  clouds.push({
-    x: camera.x + width * 1.5 + Math.random() * 400, // Spawn further ahead
-    y: Math.random() * 300 + 50, // Spread vertically more
-    radius: baseRadius,
-    opacity: Math.random() * 0.4 + 0.3,
-    velocityX: -0.2 - Math.random() * 0.3, // More varied parallax speeds
-    circles: circles
-  });
+  cloudCount++;
 }
 
 function generateBlock() {
+  // Find an inactive block to reuse
+  if (blockCount >= MAX_BLOCKS) return; // Can't spawn more
+  
   const balloonColors = [
     '#ff3333', // Bright Red
     '#33ff33', // Bright Green  
@@ -516,43 +592,49 @@ function generateBlock() {
   
   const newBalloonX = camera.x + width * 1.5 + Math.random() * MAX_BALLOON_X_SPREAD;
   
-  blocks.push({
-    x: newBalloonX,
-    width: balloonSize,
-    height: balloonBodyHeight + stringLength, // Balloon body + fixed string
-    y: heightFromGround,  // Store height from ground directly
-    velocityX: -1.5,
-    color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
-  });
+  // Reuse existing block object
+  const block = blocks[blockCount];
+  block.x = newBalloonX;
+  block.width = balloonSize;
+  block.height = balloonBodyHeight + stringLength;
+  block.y = heightFromGround;
+  block.velocityX = -1.5;
+  block.color = balloonColors[Math.floor(Math.random() * balloonColors.length)];
+  block.sinking = false;
+  block.sinkTime = 0;
+  block.sinkVelocityY = 0;
   
+  blockCount++;
   lastBalloonX = newBalloonX;
 }
 
+// Initialize some clouds using pre-allocated objects
 for (let i = 0; i < 10; i++) {
   const baseRadius = Math.random() * 30 + 20;
   const numCircles = Math.floor(Math.random() * 4) + 2; // 2-5 circles
-  const circles = [];
   
-  // Create multiple overlapping circles with more spacing
+  const cloud = clouds[cloudCount];
+  cloud.x = Math.random() * width * 3;
+  cloud.y = Math.random() * 300 + 50;
+  cloud.radius = baseRadius;
+  cloud.opacity = Math.random() * 0.4 + 0.3;
+  cloud.velocityX = -0.2 - Math.random() * 0.3;
+  cloud.circleCount = numCircles;
+  
+  // Set up circles using pre-allocated array
   for (let j = 0; j < numCircles; j++) {
-    circles.push({
-      x: (Math.random() - 0.5) * baseRadius * 1.4,
-      y: (Math.random() - 0.5) * baseRadius * 1.0,
-      radius: baseRadius * (0.5 + Math.random() * 0.4)
-    });
+    const circle = cloud.circles[j];
+    circle.x = (Math.random() - 0.5) * baseRadius * 1.4;
+    circle.y = (Math.random() - 0.5) * baseRadius * 1.0;
+    circle.radius = baseRadius * (0.5 + Math.random() * 0.4);
   }
   
-  clouds.push({
-    x: Math.random() * width * 3,
-    y: Math.random() * 300 + 50,
-    radius: baseRadius,
-    opacity: Math.random() * 0.4 + 0.3,
-    velocityX: -0.2 - Math.random() * 0.3,
-    circles: circles
-  });
+  cloudCount++;
 }
 
-for (let i = 0; i < 8; i++) {
+// Initialize initial balloons
+blockCount = 0;
+for (let i = 0; i < 8 && blockCount < MAX_BLOCKS; i++) {
   const balloonColors = [
     '#ff3333', // Bright Red
     '#33ff33', // Bright Green  
@@ -571,14 +653,18 @@ for (let i = 0; i < 8; i++) {
   
   const balloonX = player.x + width + i * 200 + Math.random() * 150;
   
-  blocks.push({
-    x: balloonX,
-    width: balloonSize,
-    height: balloonBodyHeight + stringLength,
-    y: heightFromGround,  // Store height from ground directly
-    velocityX: -1.5,
-    color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
-  });
+  const block = blocks[blockCount];
+  block.x = balloonX;
+  block.width = balloonSize;
+  block.height = balloonBodyHeight + stringLength;
+  block.y = heightFromGround;
+  block.velocityX = -1.5;
+  block.color = balloonColors[Math.floor(Math.random() * balloonColors.length)];
+  block.sinking = false;
+  block.sinkTime = 0;
+  block.sinkVelocityY = 0;
+  
+  blockCount++;
   
   // Track the last balloon position
   if (i === 7) {
@@ -621,7 +707,8 @@ function drawCloud(cloud: Cloud) {
   // Draw all circles with screen blend mode to prevent opacity stacking
   ctx.globalCompositeOperation = 'screen';
   
-  for (const circle of cloud.circles) {
+  for (let i = 0; i < cloud.circleCount; i++) {
+    const circle = cloud.circles[i];
     const drawX = Math.floor(cloud.x + circle.x - camera.x);
     const drawY = Math.floor(cloud.y + circle.y - camera.y);
     ctx.beginPath();
@@ -676,25 +763,36 @@ function drawBlock(block: Block) {
     const progress = i / segments; // 0 to 1
     const y = stringStartY + (progress * stringLength);
     const wiggleAmount = progress * 4; // More wiggle towards bottom
-    const wiggle = Math.sin(y * 0.1 + Date.now() * 0.002) * wiggleAmount;
+    // Use titleAnimationTime instead of Date.now() to avoid allocations
+    const wiggle = Math.sin(y * 0.1 + titleAnimationTime * 0.1) * wiggleAmount;
     ctx.lineTo(centerX + wiggle, y);
   }
   ctx.stroke();
 }
 
 function createExplosion(x: number, y: number, color: string) {
-  for (let i = 0; i < 20; i++) {
-    particles.push({
-      x: x,
-      y: y,
-      velocityX: (Math.random() - 0.5) * 12,
-      velocityY: (Math.random() - 0.5) * 12,
-      life: 40 + Math.random() * 20,
-      color: color,
-      size: Math.random() * 10 + 6, // 6-16px particles
-      angle: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.3
-    });
+  let added = 0;
+  
+  // Find dead particles to reuse
+  for (let i = 0; i < MAX_PARTICLES && added < 20; i++) {
+    if (particles[i].life <= 0) {
+      const particle = particles[i];
+      // Reuse this dead particle
+      particle.x = x;
+      particle.y = y;
+      particle.velocityX = (Math.random() - 0.5) * 12;
+      particle.velocityY = (Math.random() - 0.5) * 12;
+      particle.life = 40 + Math.random() * 20;
+      particle.color = color;
+      particle.size = Math.random() * 10 + 6;
+      particle.angle = Math.random() * Math.PI * 2;
+      particle.rotationSpeed = (Math.random() - 0.5) * 0.3;
+      
+      added++;
+      if (i >= particleCount) {
+        particleCount = i + 1;
+      }
+    }
   }
 }
 
@@ -1127,6 +1225,9 @@ let lastTime = 0;
 let accumulator = 0;
 const FIXED_TIMESTEP = 1000 / 60; // 60fps in milliseconds
 
+// Cache for frequently used values
+let currentFrameTime = 0; // Cache Date.now() per frame
+
 function tick(currentTime = 0) {
   requestAnimationFrame(tick);
   
@@ -1143,6 +1244,9 @@ function tick(currentTime = 0) {
   // Process one fixed update step
   accumulator -= FIXED_TIMESTEP;
   
+  // Cache current frame time to avoid repeated Date.now() calls
+  currentFrameTime = currentTime;
+  
   // Update title animation time
   titleAnimationTime++;
   
@@ -1150,17 +1254,15 @@ function tick(currentTime = 0) {
   if (isTransitioning) {
     transitionProgress = Math.min(1, transitionProgress + 0.02);
     
-    // Update text particles
-    for (let i = textParticles.length - 1; i >= 0; i--) {
+    // Update only active text particles
+    for (let i = 0; i < textParticleCount; i++) {
       const particle = textParticles[i];
-      particle.x += particle.velocityX;
-      particle.y += particle.velocityY;
-      particle.velocityY += 0.5; // Gravity
-      particle.rotation += particle.rotationSpeed;
-      particle.life--;
-      
-      if (particle.life <= 0) {
-        textParticles.splice(i, 1);
+      if (particle.life > 0) {
+        particle.x += particle.velocityX;
+        particle.y += particle.velocityY;
+        particle.velocityY += 0.5; // Gravity
+        particle.rotation += particle.rotationSpeed;
+        particle.life--;
       }
     }
   }
@@ -1183,21 +1285,37 @@ function tick(currentTime = 0) {
   ctx.fillStyle = '#27ae60';
   ctx.fillRect(-width, GROUND_Y - camera.y, width * 3, height * 3);
   
-  for (let i = clouds.length - 1; i >= 0; i--) {
+  // Process clouds - compact array to avoid splice
+  let newCloudCount = 0;
+  for (let i = 0; i < cloudCount; i++) {
     const cloud = clouds[i];
     cloud.x += cloud.velocityX;
-    if (cloud.x < camera.x - width * 0.5) { // Despawn further offscreen
-      clouds.splice(i, 1);
-    } else {
+    
+    // Keep cloud if still on screen
+    if (cloud.x >= camera.x - width * 0.5) {
+      if (i !== newCloudCount) {
+        // Swap clouds to compact array
+        const temp = clouds[newCloudCount];
+        clouds[newCloudCount] = cloud;
+        clouds[i] = temp;
+      }
       drawCloud(cloud);
+      newCloudCount++;
     }
   }
+  cloudCount = newCloudCount;
   
-  for (let i = blocks.length - 1; i >= 0; i--) {
+  // Process blocks and handle collisions - compact without resizing
+  let newBlockCount = 0;
+  for (let i = 0; i < blockCount; i++) {
     const block = blocks[i];
     block.x += block.velocityX;
-    if (block.x < camera.x - width * 0.5) { // Despawn further offscreen
-      blocks.splice(i, 1);
+    
+    let shouldKeep = true;
+    
+    // Remove if off screen
+    if (block.x < camera.x - width * 0.5) {
+      shouldKeep = false;
     } else {
       // Check if balloon is already sinking (being popped)
       if (block.sinking) {
@@ -1210,12 +1328,11 @@ function tick(currentTime = 0) {
         if (block.sinkTime >= 10) {
           const blockScreenY = GROUND_Y - block.y;
           createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
-          blocks.splice(i, 1);
-          continue;
+          shouldKeep = false;
         }
       }
       
-      if (checkCollision(player, block) && !block.sinking) {
+      if (shouldKeep && checkCollision(player, block) && !block.sinking) {
         // Start sinking animation
         block.sinking = true;
         block.sinkTime = 0;
@@ -1299,15 +1416,25 @@ function tick(currentTime = 0) {
           playPopSound();
           const blockScreenY = GROUND_Y - block.y;
           createExplosion(block.x + block.width/2, blockScreenY + block.height/2, block.color);
-          blocks.splice(i, 1);
-          continue; // Skip drawing since we just removed it
+          shouldKeep = false;
         }
-        // Don't remove block here if sinking - let sinking animation handle it
-        // Don't skip drawing - we still want to see the balloon sink
+      }
+    }
+    
+    // Keep block if still active - compact array
+    if (shouldKeep) {
+      if (i !== newBlockCount) {
+        // Swap blocks to keep active ones at the front
+        const temp = blocks[newBlockCount];
+        blocks[newBlockCount] = block;
+        blocks[i] = temp;
       }
       drawBlock(block);
+      newBlockCount++;
     }
   }
+  // Update block count without resizing array
+  blockCount = newBlockCount;
   
   if (Math.random() < 0.02) {
     generateCloud();
@@ -1317,18 +1444,19 @@ function tick(currentTime = 0) {
     generateBlock();
   }
   
-  for (let i = particles.length - 1; i >= 0; i--) {
+  // Only process active particles (up to particleCount)
+  for (let i = 0; i < particleCount; i++) {
     const particle = particles[i];
-    particle.x += particle.velocityX;
-    particle.y += particle.velocityY;
-    particle.velocityY += 0.2;
-    particle.angle += particle.rotationSpeed;
-    particle.life--;
-    
-    if (particle.life <= 0) {
-      particles.splice(i, 1);
-    } else {
-      drawParticle(particle);
+    if (particle.life > 0) {
+      particle.x += particle.velocityX;
+      particle.y += particle.velocityY;
+      particle.velocityY += 0.2;
+      particle.angle += particle.rotationSpeed;
+      particle.life--;
+      
+      if (particle.life > 0) {
+        drawParticle(particle);
+      }
     }
   }
   
@@ -1467,22 +1595,25 @@ function tick(currentTime = 0) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
-    for (const particle of textParticles) {
-      const opacity = particle.life / 60;
-      ctx.globalAlpha = opacity;
-      ctx.fillStyle = particle.color;
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 4;
-      
-      ctx.save();
-      ctx.translate(particle.x, particle.y);
-      ctx.rotate(particle.rotation);
-      
-      // Draw letter with outline
-      ctx.strokeText(particle.letter, 0, 0);
-      ctx.fillText(particle.letter, 0, 0);
-      
-      ctx.restore();
+    for (let i = 0; i < textParticleCount; i++) {
+      const particle = textParticles[i];
+      if (particle.life > 0) {
+        const opacity = particle.life / 60;
+        ctx.globalAlpha = opacity;
+        ctx.fillStyle = particle.color;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        
+        ctx.save();
+        ctx.translate(particle.x, particle.y);
+        ctx.rotate(particle.rotation);
+        
+        // Draw letter with outline
+        ctx.strokeText(particle.letter, 0, 0);
+        ctx.fillText(particle.letter, 0, 0);
+        
+        ctx.restore();
+      }
     }
     
     ctx.restore();
@@ -1570,13 +1701,16 @@ function handleJumpStart() {
       cameraAngle = 0;
       cameraZoom = 1.0;
       
-      // Clear existing balloons and clouds
-      blocks.length = 0;
-      clouds.length = 0;
-      particles.length = 0;
+      // Reset counts without resizing arrays
+      blockCount = 0;
+      cloudCount = 0;
+      // Reset all particles instead of clearing array
+      for (let i = 0; i < particleCount; i++) {
+        particles[i].life = 0;
+      }
+      particleCount = 0;
       
-        // Spawn new balloons close to player
-      for (let i = 0; i < 8; i++) {
+        // Spawn new balloons close to player using pre-allocated objects
       const balloonColors = [
         '#ff3333', // Bright Red
         '#33ff33', // Bright Green  
@@ -1587,42 +1721,48 @@ function handleJumpStart() {
       const balloonSize = 60;
       const stringLength = 40;
       const balloonBodyHeight = balloonSize * 1.2;
-      const heightFromGround = (i % 2 === 0)
-        ? Math.random() * (MIN_JUMPABLE_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT
-        : Math.random() * (MAX_BALLOON_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT;
       
-        blocks.push({
-        x: player.x + width/2 + i * 200 + Math.random() * 150,
-        width: balloonSize,
-        height: balloonBodyHeight + stringLength,
-        y: heightFromGround,  // Store height from ground directly
-        velocityX: -1.5,
-        color: balloonColors[Math.floor(Math.random() * balloonColors.length)]
-        });
+      for (let i = 0; i < 8 && blockCount < MAX_BLOCKS; i++) {
+        const heightFromGround = (i % 2 === 0)
+          ? Math.random() * (MIN_JUMPABLE_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT
+          : Math.random() * (MAX_BALLOON_HEIGHT - MIN_BALLOON_HEIGHT) + MIN_BALLOON_HEIGHT;
+        
+        const block = blocks[blockCount];
+        block.x = player.x + width/2 + i * 200 + Math.random() * 150;
+        block.width = balloonSize;
+        block.height = balloonBodyHeight + stringLength;
+        block.y = heightFromGround;
+        block.velocityX = -1.5;
+        block.color = balloonColors[Math.floor(Math.random() * balloonColors.length)];
+        block.sinking = false;
+        block.sinkTime = 0;
+        block.sinkVelocityY = 0;
+        
+        blockCount++;
       }
       
-        // Spawn some initial clouds
-      for (let i = 0; i < 10; i++) {
+        // Spawn some initial clouds using pre-allocated objects
+      for (let i = 0; i < 10 && cloudCount < MAX_CLOUDS; i++) {
         const baseRadius = Math.random() * 30 + 20;
         const numCircles = Math.floor(Math.random() * 4) + 2;
-        const circles = [];
         
+        const cloud = clouds[cloudCount];
+        cloud.x = Math.random() * width * 2;
+        cloud.y = Math.random() * 300 + 50;
+        cloud.radius = baseRadius;
+        cloud.opacity = Math.random() * 0.4 + 0.3;
+        cloud.velocityX = -0.2 - Math.random() * 0.3;
+        cloud.circleCount = numCircles;
+        
+        // Set up circles using pre-allocated array
         for (let j = 0; j < numCircles; j++) {
-          circles.push({
-            x: (Math.random() - 0.5) * baseRadius * 1.4,
-            y: (Math.random() - 0.5) * baseRadius * 1.0,
-            radius: baseRadius * (0.5 + Math.random() * 0.4)
-          });
+          const circle = cloud.circles[j];
+          circle.x = (Math.random() - 0.5) * baseRadius * 1.4;
+          circle.y = (Math.random() - 0.5) * baseRadius * 1.0;
+          circle.radius = baseRadius * (0.5 + Math.random() * 0.4);
         }
         
-        clouds.push({
-          x: Math.random() * width * 2,
-          y: Math.random() * 300 + 50,
-          radius: baseRadius,
-          opacity: Math.random() * 0.4 + 0.3,
-          velocityX: -0.2 - Math.random() * 0.3,
-          circles: circles
-        });
+        cloudCount++;
       }
     }, 1000);
     
