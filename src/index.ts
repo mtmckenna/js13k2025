@@ -296,7 +296,7 @@ let scoreAnimationTime = 0;
 
 // Balloon spawn tracking for fairness
 let lastBalloonX = 0;
-const MAX_BALLOON_GAP = 300; // Maximum horizontal gap between balloons (triggers guaranteed spawn)
+const MAX_BALLOON_GAP = 200; // Maximum horizontal gap between balloons (triggers guaranteed spawn)
 const MAX_BALLOON_X_SPREAD = 300; // Maximum random X distance when spawning balloons
 const MIN_JUMPABLE_HEIGHT = 250; // Height reachable with a good jump
 const MIN_BALLOON_HEIGHT = 150; // Minimum height for any balloon (above player)
@@ -1538,7 +1538,7 @@ function tick(currentTime = 0) {
     generateFlower();
   }
   
-  if (Math.random() < 0.03) {
+  if (Math.random() < 0.04) {
     generateBlock();
   }
   
