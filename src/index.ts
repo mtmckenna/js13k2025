@@ -895,6 +895,14 @@ function drawTitleScreen() {
   ctx.lineWidth = 3;
   ctx.textAlign = 'center';
   
+  // Game objective
+  const objective = "Pop the balloons to celebrate Jerry's birthday!";
+  ctx.fillStyle = '#45b7d1'; // Light blue color
+  ctx.strokeText(objective, width / 2, height / 2);
+  ctx.fillText(objective, width / 2, height / 2);
+  
+  // Control instructions
+  ctx.fillStyle = '#fff';
   const instruction1 = "Press space, tap, or click to jump";
   ctx.strokeText(instruction1, width / 2, height / 2 + 40);
   ctx.fillText(instruction1, width / 2, height / 2 + 40);
@@ -903,7 +911,7 @@ function drawTitleScreen() {
   ctx.strokeText(instruction2, width / 2, height / 2 + 80);
   ctx.fillText(instruction2, width / 2, height / 2 + 80);
   
-    const instruction3 = "Press jump twice to double jump (one time per jump)";
+    const instruction3 = "Press jump twice to double jump (once per jump)";
   ctx.strokeText(instruction3, width / 2, height / 2 + 120);
   ctx.fillText(instruction3, width / 2, height / 2 + 120);
   
